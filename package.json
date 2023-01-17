@@ -1,0 +1,29 @@
+{
+  "name": "teleport",
+  "version": "0.0.1",
+  "description": "https://docs.google.com/document/d/11pocwh5o4-GFjNfQUtmnS2LcsE10ESorcop8iuumUNc/edit#heading=h.wjwhuuom42ou",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test:spec": "node --loader tsx --test spec.test.js",
+    "test:warp": "node test-runner.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/warp-contracts/teleport.git"
+  },
+  "author": "Warp Team",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/warp-contracts/teleport/issues"
+  },
+  "homepage": "https://github.com/warp-contracts/teleport#readme",
+  "dependencies": {
+    "arlocal": "^1.1.59",
+    "typescript": "^4.9.4",
+    "warp-contracts": "^1.2.46"
+  },
+  "devDependencies": {
+    "tsx": "^3.12.2"
+  }
+}
