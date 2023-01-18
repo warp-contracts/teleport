@@ -3,10 +3,12 @@
   "version": "0.0.1",
   "description": "https://docs.google.com/document/d/11pocwh5o4-GFjNfQUtmnS2LcsE10ESorcop8iuumUNc/edit#heading=h.wjwhuuom42ou",
   "main": "index.js",
-  "type": "module",
   "scripts": {
-    "test:spec": "node --loader tsx --test spec.test.js",
-    "test:warp": "node test-runner.js"
+    "test:spec": "node --loader tsx --test specification/spec.test.cjs",
+    "test:warp": "node warp-contracts/test-runner.mjs",
+    "test:evm": "pushd evm-contracts && hardhat test && popd",
+    "test:integration": "",
+    "test:all": "npm run test:spec && npm run test:evm && npm run test:warp"
   },
   "repository": {
     "type": "git",
@@ -19,9 +21,14 @@
   },
   "homepage": "https://github.com/warp-contracts/teleport#readme",
   "dependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.1",
+    "@openzeppelin/contracts": "^4.8.1",
     "arlocal": "^1.1.59",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.12.6",
     "typescript": "^4.9.4",
-    "warp-contracts": "^1.2.46"
+    "warp-contracts": "^1.2.48-beta.1",
+    "warp-contracts-plugin-ethers": "^1.0.7"
   },
   "devDependencies": {
     "tsx": "^3.12.2"

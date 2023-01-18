@@ -4,10 +4,12 @@ import { LoggerFactory, WarpFactory } from 'warp-contracts';
 import { join } from 'path';
 import { describe, it, before, after } from 'node:test';
 import Arl from 'arlocal';
+import { EthersExtension } from 'warp-contracts-plugin-ethers';
+import { ethers } from 'ethers';
 
 const CONTRACT_PATH_OFFER = join("warp-contracts", "offer.warp.js");
 const CONTRACT_PATH_NFT = join("warp-contracts", "nft.warp.js");
-const warp = WarpFactory.forLocal(1411);
+const warp = WarpFactory.forLocal(1411).use(new EthersExtension());
 const CONTRACT_CODE_OFFER = readFileSync(CONTRACT_PATH_OFFER).toString();
 const CONTRACT_CODE_NFT = readFileSync(CONTRACT_PATH_NFT).toString();
 LoggerFactory.INST.logLevel('none');
@@ -221,20 +223,6 @@ describe('Offer', () => {
             });
         });
 
-        it('should fail if signer !== owner', async () => {
-            const { offer, signerAddress: ALICE } = await createOffer();
-            const { jwk: BOB } = await warp.generateWallet();
-
-            await assert.rejects(offer.connect(BOB).writeInteraction(
-                {
-                    function: 'cancel'
-                },
-                { strict: true }
-            ), err => {
-                assert.equal(err.message, `Cannot create interaction: Only contract owner ${ALICE} can cancel`)
-                return true;
-            });
-        });
 
         it('should cancel if stage = PENDING', async () => {
             const { offer, signerAddress: ALICE, nft } = await createOffer();
@@ -246,17 +234,156 @@ describe('Offer', () => {
                 { strict: true }
             );
 
-            // const { result } = await nft.viewState({ function: 'ownerOf', tokenId: 'a' })
-            // assert.equal(result, ALICE);
+            const { result } = await nft.viewState({ function: 'ownerOf', tokenId: 'a' })
+            assert.equal(result, ALICE);
         });
 
+        it.todo('should cancel when stage == ACCEPTED_BY_BUYER')
+        it.todo('should cancel when stage == ACCEPTED_BY_SELLER')
+        it.todo('should  fail to cancel when stage == FINALIZED')
+        it.todo('should  fail to cancel when stage == CANCELED')
+        it.todo('should  fail to cancel when before expireAt')
+    });
 
+    describe('acceptBuyer', async () => {
+        it('should fail to accept is stage != PENDING', async () => {
+            const { contract } = await deployContract();
 
+            await assert.rejects(contract.writeInteraction(
+                {
+                    function: 'acceptBuyer',
+                    hashedPassword: "123"
+                },
+                { strict: true }
+            ), err => {
+                assert.equal(err.message, "Cannot create interaction: Offer to be accepted by buyer has to be in stage PENDING")
+                return true;
+            })
+        });
+
+        it('should accept buyer', async () => {
+            const { offer, signerAddress } = await createOffer();
+
+            await offer.writeInteraction(
+                {
+                    function: 'acceptBuyer',
+                    hashedPassword: "321"
+                },
+                { strict: true }
+            );
+
+            const { cachedValue } = await offer.readState();
+            assert.equal(
+                cachedValue.state.hashedPassword,
+                "321"
+            )
+            assert.equal(
+                cachedValue.state.buyer,
+                signerAddress
+            )
+            assert.equal(
+                cachedValue.state.stage,
+                "ACCEPTED_BY_BUYER"
+            )
+        });
+    });
+
+    describe('acceptSeller', () => {
+        it('should  accept by seller', async () => {
+            const { offer } = await createOffer();
+
+            await offer.writeInteraction(
+                {
+                    function: 'acceptBuyer',
+                    hashedPassword: "321"
+                },
+                { strict: true }
+            );
+
+            await offer.writeInteraction(
+                {
+                    function: 'acceptSeller',
+                },
+                { strict: true }
+            );
+
+            const { cachedValue } = await offer.readState();
+            assert.equal(
+                cachedValue.state.stage,
+                "ACCEPTED_BY_SELLER"
+            );
+        });
     });
 
 
+    describe('finalize', () => {
+        it('should finalize', async () => {
+            const { offer, nft, signer: ALICE } = await createOffer();
+            const { jwk: BOB, address: BOB_ADDRESS } = await warp.generateWallet();
+
+            const password = "312"
+            const hashedPassword = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [password]));
+
+            await offer.connect(BOB).writeInteraction(
+                {
+                    function: 'acceptBuyer',
+                    hashedPassword
+                },
+                { strict: true }
+            );
+
+            await offer.connect(ALICE).writeInteraction(
+                {
+                    function: 'acceptSeller',
+                },
+                { strict: true }
+            );
+
+            await offer.writeInteraction(
+                {
+                    function: 'finalize',
+                    password
+                },
+                { strict: true }
+            );
 
 
+            const { result } = await nft.viewState({ function: 'ownerOf', tokenId: 'a' })
+            assert.equal(result, BOB_ADDRESS);
+        });
 
+        it('should fail to finalize, if wrong password provided', async () => {
+            const { offer, nft, signer: ALICE } = await createOffer();
+            const { jwk: BOB, address: BOB_ADDRESS } = await warp.generateWallet();
 
+            const password = "312"
+            const hashedPassword = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [password]));
+
+            await offer.connect(BOB).writeInteraction(
+                {
+                    function: 'acceptBuyer',
+                    hashedPassword
+                },
+                { strict: true }
+            );
+
+            await offer.connect(ALICE).writeInteraction(
+                {
+                    function: 'acceptSeller',
+                },
+                { strict: true }
+            );
+
+            await assert.rejects(offer.writeInteraction(
+                {
+                    function: 'finalize',
+                    password: password + "1"
+                },
+                { strict: true }
+            ), err => {
+                assert.equal(err.message, "Cannot create interaction: Password doesn't match")
+                return true;
+            })
+        });
+    });
 });

@@ -11,5 +11,5 @@ function runTest(file) {
         .addListener("test:diagnostic", obj => console.log(obj))
 }
 
-runTest('warp-contracts/offer.warp.test.js')
-// runTest('warp-contracts/nft.warp.test.js')
+runTest('warp-contracts/offer.warp.test.mjs')
+runTest('warp-contracts/nft.warp.test.mjs')

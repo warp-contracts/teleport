@@ -2,7 +2,6 @@ export class Clock {
     static s = 1;
 }
 
-
 class Contract {
     contractId = Math.ceil(Math.random() * 1000).toString();
 }
@@ -84,14 +83,6 @@ export class Offer extends Contract {
 
         if (owner !== nft.owner) {
             revert("Only owner of nft can create offer on it")
-        }
-
-        if (value <= 0) {
-
-        }
-
-        if (expireAt < Clock.s) {
-
         }
 
     }

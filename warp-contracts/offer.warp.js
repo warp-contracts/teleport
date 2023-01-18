@@ -27,14 +27,36 @@ export async function handle(state, action) {
                     action.caller
                 ))
             })
-        case 'cancel':
-            const offer = deserializeOffer(state);
+        case 'cancel': {
+            const offer = await deserializeOffer(state).cancel(action.caller);
             return (
                 {
-                    state: serializeOffer(await offer.cancel(action.caller))
+                    state: serializeOffer(offer)
                 }
             );
-
+        }
+        case 'acceptBuyer': {
+            const offer = await deserializeOffer(state).acceptBuyer(action.caller, input.hashedPassword);
+            return (
+                {
+                    state: serializeOffer(offer)
+                }
+            )
+        }
+        case 'acceptSeller': {
+            const offer = await deserializeOffer(state).acceptSeller(action.caller);
+            return (
+                {
+                    state: serializeOffer(offer)
+                }
+            )
+        }
+        case 'finalize': {
+            const offer = await deserializeOffer(state).finalize(action.caller, input.password);
+            return (
+                { state: serializeOffer(offer) }
+            )
+        }
         default:
             revert(`function ${input.function} unknown`)
     }
@@ -49,6 +71,7 @@ class Offer {
     priceTokenId;
     owner;
     expirePeriod;
+    expireAt;
 
     buyer;
     hashedPassword;
@@ -88,31 +111,77 @@ class Offer {
         }
 
         if (this.stage === OFFER_STAGE.PENDING) {
-            this.stage === OFFER_STAGE.CANCELED;
+            this.stage = OFFER_STAGE.CANCELED;
             await SmartWeave.contracts.write(this.nftContractId,
                 { function: 'transfer', tokenId: this.nftId, to: this.owner }
             );
         } else if (this.stage === OFFER_STAGE.ACCEPTED_BY_BUYER || this.stage === OFFER_STAGE.ACCEPTED_BY_SELLER) {
-            if (SmartWeave.transaction.timestamp < this.expirePeriod) {
+            if (SmartWeave.transaction.timestamp < this.expireAt) {
                 revert(`Offer has to expire to be canceled`);
             }
-            this.stage === OFFER_STAGE.CANCELED;
+            this.stage = OFFER_STAGE.CANCELED;
             await SmartWeave.contracts.write(this.nftContractId,
                 { function: 'transfer', tokenId: this.nftId, to: this.owner }
             );
+
         }
         else if (this.stage === OFFER_STAGE.CANCELED || this.stage === OFFER_STAGE.FINALIZED) {
             revert(`Can't cancel offer in stage ${this.stage}`)
+        } else {
+            revert(`Unknown OfferStage: ${this.stage}`);
         }
 
-        revert(`Unknown OfferStage: ${this.stage}`);
+        return this;
     }
 
+    async acceptBuyer(signer, hashedPassword) {
+        isNotEmptyString(hashedPassword);
 
-    _assertNotExpired() {
-        if (SmartWeave.transaction.timestamp < this.expirePeriod) {
-            revert(`Offer has expired, now it can be only canceled`);
+        if (this.stage !== OFFER_STAGE.PENDING) {
+            revert(`Offer to be accepted by buyer has to be in stage PENDING`)
         }
+
+        this.hashedPassword = hashedPassword;
+        this.buyer = signer;
+        this.stage = OFFER_STAGE.ACCEPTED_BY_BUYER;
+
+        return this;
+    }
+
+    async acceptSeller(signer) {
+        if (signer !== this.owner) {
+            revert(`Owner required`)
+        }
+
+        if (this.stage !== OFFER_STAGE.ACCEPTED_BY_BUYER) {
+            revert(`Offer to be accepted by seller ahs to be in stage ACCEPTED_BY_SELLER`)
+        }
+
+        this.expireAt = SmartWeave.transaction.timestamp + this.expirePeriod;
+        this.stage = OFFER_STAGE.ACCEPTED_BY_SELLER;
+
+        return this;
+    }
+
+    async finalize(_signer, password) {
+        if (this.stage !== OFFER_STAGE.ACCEPTED_BY_SELLER) {
+            revert(`To finalize offer it has to be in ACCEPTED_BY_SELLER stage`)
+        }
+
+        const encoded = SmartWeave.extensions.ethers.utils.defaultAbiCoder.encode(["string"], [password]);
+        const hash = SmartWeave.extensions.ethers.utils.keccak256(encoded);
+
+        if (this.hashedPassword !== hash) {
+            revert(`Password doesn't match`)
+        }
+
+        await SmartWeave.contracts.write(this.nftContractId,
+            { function: 'transfer', tokenId: this.nftId, to: this.buyer }
+        )
+
+        this.stage = OFFER_STAGE.FINALIZED;
+
+        return this;
     }
 
     async _isOfferOwnerOfNFT() {
@@ -140,6 +209,7 @@ const OFFER_KEYS = [
     'priceTokenId',
     'owner',
     'expireAt',
+    'expirePeriod',
     'buyer',
     'hashedPassword'
 ];
