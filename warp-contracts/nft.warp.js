@@ -37,8 +37,8 @@ function transfer(signer, state, input) {
 
 function mint(signer, state, input) {
     const content = get(input.content);
-    const newTokenId = state.idCounter + 1;
-    state.idCounter = newTokenId;
+    const newTokenId = Number.parseInt(state.idCounter) + 1;
+    state.idCounter = newTokenId.toString();
 
     state[newTokenId] = { content, owner: signer };
 

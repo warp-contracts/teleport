@@ -60,8 +60,8 @@ describe('simplest NFT', () => {
         assert.deepStrictEqual(
             state,
             {
-                1: { owner: signerAddress, content: 'a' },
-                idCounter: 1
+                '1': { owner: signerAddress, content: 'a' },
+                idCounter: '1'
             },
         );
     });
@@ -83,8 +83,8 @@ describe('simplest NFT', () => {
         assert.deepStrictEqual(
             state,
             {
-                1: { owner: 'X', content: 'a' },
-                idCounter: 1
+                '1': { owner: 'X', content: 'a' },
+                idCounter: '1'
             },
         );
     });
@@ -118,7 +118,7 @@ describe('simplest NFT', () => {
 
         const { result } = await contract.viewState({
             function: 'ownerOf',
-            tokenId: 1
+            tokenId: '1'
         })
 
         assert.equal(

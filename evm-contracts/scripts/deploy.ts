@@ -1,22 +1,18 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  const Erc20 = await ethers.getContractFactory("TestERC20");
+  const erc20 = await Erc20.deploy();
 
-  const lockedAmount = ethers.utils.parseEther("1");
+  const [owner] = await ethers.getSigners();
 
-  const Lock = await ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  await erc20.deployed();
+  console.log("ERC20 address: ", erc20.address)
 
-  await lock.deployed();
-
-  console.log("Lock with 1 ETH deployed to:", lock.address);
+  await erc20.testMint("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", 100);
+  await erc20.testMint("0x70997970C51812dc3A010C7d01b50e0d17dc79C8", 100);
+  console.log(`Minted 100 to`)
 }
-
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
