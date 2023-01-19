@@ -7,7 +7,7 @@
     "test:spec": "node --loader tsx --test specification/spec.test.cjs",
     "test:warp": "node warp-contracts/test-runner.mjs",
     "test:evm": "pushd evm-contracts && hardhat test && popd",
-    "test:integration": "",
+    "demo:node": "ts-node demo-node/main.ts",
     "test:all": "npm run test:spec && npm run test:evm && npm run test:warp"
   },
   "repository": {
@@ -32,6 +32,7 @@
     "warp-contracts-plugin-signature": "^1.0.8"
   },
   "devDependencies": {
+    "ts-node": "^10.9.1",
     "tsx": "^3.12.2"
   }
 }

@@ -154,7 +154,7 @@ class Offer {
         }
 
         if (this.stage !== OFFER_STAGE.ACCEPTED_BY_BUYER) {
-            revert(`Offer to be accepted by seller ahs to be in stage ACCEPTED_BY_SELLER`)
+            revert(`Offer to be accepted by seller has to be in stage ACCEPTED_BY_BUYER`)
         }
 
         this.expireAt = SmartWeave.transaction.timestamp + this.expirePeriod;

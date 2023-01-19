@@ -1,20 +1,19 @@
-import { ethers } from "ethers";
-import { Contract, CustomSignature, Warp, WarpFactory } from "warp-contracts";
-import { EthersExtension } from "warp-contracts-plugin-ethers";
+import { ethers, Signer } from "ethers";
+import { CustomSignature, Warp } from "warp-contracts";
 import TeleportEscrow from "./TeleportEscrow";
 
 const INIT_STATE = JSON.stringify({});
 export const TRUSTED_OFFER_SRC_TX_ID = "8bcPZxQBIFBeGyJGNGilmKlix6fzsCzH6SxqnoSo1WI";
-
-const ESCROW_ABI = TeleportEscrow.abi;
 
 export class Seller {
 
     constructor(
         private readonly signer: CustomSignature,
         private readonly warp: Warp,
-        private readonly evm: ethers.providers.JsonRpcProvider
+        private readonly evm: ethers.providers.JsonRpcProvider,
+        private readonly evmSigner: Signer
     ) {
+        this.evmSigner = this.evmSigner.connect(this.evm)
     }
 
 
@@ -54,20 +53,36 @@ export class Seller {
         return { offerId: deployment.contractTxId }
     }
 
-    async acceptEscrow(escrowId: string) {
-
+    async acceptEscrow(escrowId: string, offerId: string) {
         const escrow = new ethers.Contract(escrowId, TeleportEscrow.abi, this.evm);
 
         const stage = await escrow.stage();
+
         if (stage !== 1) {
-            throw
+            throw Error(`Wrong stage of escrow: ${stage}`)
         }
-        // check if escrow is in good state
-        // 
 
+        const byteCode = await this.evm.getCode(escrowId);
 
+        if (byteCode !== TeleportEscrow.deployedBytecode) {
+            throw Error(`Unknown byte code`);
+        }
 
+        const offer = this.warp.contract(offerId).connect(this.signer);
 
+        await offer.writeInteraction(
+            {
+                function: 'acceptSeller',
+            },
+            { strict: true }
+        );
     }
+
+    async finalize(escrowId: string, password: string) {
+        const escrow = new ethers.Contract(escrowId, TeleportEscrow.abi, this.evm);
+
+        await escrow.connect(this.evmSigner).finalize(password);
+    }
+
 
 } 

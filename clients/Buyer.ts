@@ -3,17 +3,15 @@ import { TRUSTED_OFFER_SRC_TX_ID } from "./Seller";
 import { ContractFactory, ethers, Signer } from 'ethers';
 import EscrowEvm from './TeleportEscrow';
 
-const WHITELISTED_TOKENS = [
-    '0x0165878A594ca255338adfa4d48449f69242Eb8F' // deployed on local node
-]
-
 const ERC20_ABI = [
     "function balanceOf(address owner) view returns (uint256)",
     "function transfer(address to, uint amount) returns (bool)",
     "event Transfer(address indexed from, address indexed to, uint amount)"
 ];
 
-
+function solidityKeccak(value: string) {
+    return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
+}
 
 export class Buyer {
 
@@ -26,20 +24,18 @@ export class Buyer {
         this.evmSigner = this.evmSigner.connect(this.evm)
     }
 
+
     async acceptOffer(offerId: string, password: string) {
         const offerContract = this.warp.contract(offerId).setEvaluationOptions(
             { internalWrites: true }
-        );
+        ).connect(this.warpSigner);
+
         const { cachedValue: { state } } = await offerContract.readState();
 
         const offerState = state as any;
 
         if (offerState.stage !== 'PENDING') {
             throw Error(`Wrong offer stage: ${offerState.stage}`)
-        }
-
-        if (!WHITELISTED_TOKENS.includes(offerState.priceTokenId)) {
-            throw Error(`Price token id is not whitelisted ${offerState.priceTokenId}`)
         }
 
         const rawContract = await fetch(`https://gateway.redstone.finance/gateway/contract?txId=${offerId}`).then(res => res.json()).catch(err => { throw Error('Gateway error') })
@@ -52,13 +48,17 @@ export class Buyer {
             throw Error(`Contract was initialized with init state: ${rawContract.initState}`)
         }
 
-        const erc20 = new ethers.Contract(offerState.priceTokenId, ERC20_ABI, this.evm).connect(this.evmSigner);
+        await offerContract.writeInteraction(
+            { function: 'acceptBuyer', hashedPassword: solidityKeccak(password) },
+            { strict: true }
+        )
 
+        const erc20 = new ethers.Contract(offerState.priceTokenId, ERC20_ABI, this.evm).connect(this.evmSigner);
         const escrowFactory = new ContractFactory(EscrowEvm.abi, EscrowEvm.bytecode, this.evmSigner);
         const escrow = await escrowFactory.deploy(
             36000,
             offerState.owner,
-            "0x" + '1'.repeat(64),
+            solidityKeccak(password),
             offerState.price,
             offerState.priceTokenId,
         );
@@ -66,8 +66,26 @@ export class Buyer {
         await erc20.connect(this.evmSigner).transfer(escrow.address, offerState.price, { gasLimit: 21000000 });
         await escrow.connect(this.evmSigner).markAsFunded({ gasLimit: 21000000 });
 
-
         return { escrowId: escrow.address }
+    }
+
+    async finalize(offerId: string, password: string) {
+        const offerContract = this.warp.contract(offerId).setEvaluationOptions(
+            { internalWrites: true }
+        ).connect(this.warpSigner);
+
+        const { cachedValue: { state } } = await offerContract.readState();
+
+        const offerState = state as any;
+
+        if (offerState.stage !== 'ACCEPTED_BY_SELLER') {
+            throw Error(`Wrong offer stage: ${offerState.stage}`)
+        }
+
+        await offerContract.writeInteraction(
+            { function: 'finalize', password },
+            { strict: true }
+        );
     }
 
 }

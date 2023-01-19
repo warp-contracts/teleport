@@ -299,7 +299,6 @@ describe('Offer', () => {
                 },
                 { strict: true }
             );
-
             await offer.writeInteraction(
                 {
                     function: 'acceptSeller',
