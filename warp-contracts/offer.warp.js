@@ -8,7 +8,6 @@ const OFFER_STAGE = {
     FINALIZED: 'FINALIZED'
 }
 
-
 export async function handle(state, action) {
     const { input, caller } = action;
 
@@ -116,7 +115,7 @@ class Offer {
                 { function: 'transfer', tokenId: this.nftId, to: this.owner }
             );
         } else if (this.stage === OFFER_STAGE.ACCEPTED_BY_BUYER || this.stage === OFFER_STAGE.ACCEPTED_BY_SELLER) {
-            if (SmartWeave.transaction.timestamp < this.expireAt) {
+            if (SmartWeave.block.timestamp < this.expireAt) {
                 revert(`Offer has to expire to be canceled`);
             }
             this.stage = OFFER_STAGE.CANCELED;
@@ -157,7 +156,7 @@ class Offer {
             revert(`Offer to be accepted by seller has to be in stage ACCEPTED_BY_BUYER`)
         }
 
-        this.expireAt = SmartWeave.transaction.timestamp + this.expirePeriod;
+        this.expireAt = SmartWeave.block.timestamp + this.expirePeriod;
         this.stage = OFFER_STAGE.ACCEPTED_BY_SELLER;
 
         return this;

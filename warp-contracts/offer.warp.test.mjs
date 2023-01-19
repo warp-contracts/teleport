@@ -311,6 +311,9 @@ describe('Offer', () => {
                 cachedValue.state.stage,
                 "ACCEPTED_BY_SELLER"
             );
+            assert.ok(
+                cachedValue.state.expireAt
+            );
         });
     });
 
