@@ -25,6 +25,7 @@
     "@openzeppelin/contracts": "^4.8.1",
     "arlocal": "^1.1.59",
     "ethers": "^5.7.2",
+    "gun": "^0.2020.1239",
     "hardhat": "^2.12.6",
     "typescript": "^4.9.4",
     "warp-contracts": "^1.2.48-beta.1",

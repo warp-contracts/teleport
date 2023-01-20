@@ -61,7 +61,6 @@ export async function handle(state, action) {
     }
 }
 
-// BIG ISSUE: https://github.com/warp-contracts/warp/issues/323
 class Offer {
     stage = OFFER_STAGE.PENDING;
     nftContractId;
@@ -140,6 +139,7 @@ class Offer {
             revert(`Offer to be accepted by buyer has to be in stage PENDING`)
         }
 
+        this.expireAt = SmartWeave.block.timestamp + this.expirePeriod;
         this.hashedPassword = hashedPassword;
         this.buyer = signer;
         this.stage = OFFER_STAGE.ACCEPTED_BY_BUYER;
@@ -156,7 +156,6 @@ class Offer {
             revert(`Offer to be accepted by seller has to be in stage ACCEPTED_BY_BUYER`)
         }
 
-        this.expireAt = SmartWeave.block.timestamp + this.expirePeriod;
         this.stage = OFFER_STAGE.ACCEPTED_BY_SELLER;
 
         return this;
@@ -273,9 +272,3 @@ function check(fn, ...values) {
 function revert(message) {
     throw new ContractError(message);
 }
-
-
-
-
-
-

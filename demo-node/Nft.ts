@@ -17,6 +17,7 @@ export const deployNft = async (warp: Warp, signer: CustomSignature) => {
     });
 
     const contract = warp.contract(contractTxId)
+        .setEvaluationOptions({ internalWrites: true })
         .connect(signer);
 
     await contract.writeInteraction(

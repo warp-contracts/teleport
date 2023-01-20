@@ -3,7 +3,7 @@ import { CustomSignature, Warp } from "warp-contracts";
 import TeleportEscrow from "./TeleportEscrow";
 
 const INIT_STATE = JSON.stringify({});
-export const TRUSTED_OFFER_SRC_TX_ID = "8bcPZxQBIFBeGyJGNGilmKlix6fzsCzH6SxqnoSo1WI";
+export const TRUSTED_OFFER_SRC_TX_ID = "BqQywTrXd-v1hmqsxroUoyugwvz8gy-pkKdUBSd-rPA";
 
 export class Seller {
 
@@ -15,7 +15,6 @@ export class Seller {
     ) {
         this.evmSigner = this.evmSigner.connect(this.evm)
     }
-
 
     async createOffer(nftContractId: string, nftId: string, price: string, priceTokenId: string) {
         const deployment =
@@ -29,13 +28,11 @@ export class Seller {
                 }
             });
 
-        const offer = this.warp.contract(deployment.contractTxId).connect(this.signer);
-
-        const nft = this.warp.contract(nftContractId).connect(this.signer);
+        const offer = this.getWarpContract(deployment.contractTxId);
+        const nft = this.getWarpContract(nftContractId);
 
         await nft.writeInteraction(
             { function: 'transfer', tokenId: nftId, to: deployment.contractTxId },
-            { strict: true }
         );
 
         await offer.writeInteraction(
@@ -53,6 +50,10 @@ export class Seller {
         return { offerId: deployment.contractTxId }
     }
 
+    private getWarpContract(id: string) {
+        return this.warp.contract(id).connect(this.signer).setEvaluationOptions({ internalWrites: true });
+    }
+
     async acceptEscrow(escrowId: string, offerId: string) {
         const escrow = new ethers.Contract(escrowId, TeleportEscrow.abi, this.evm);
 
@@ -68,13 +69,12 @@ export class Seller {
             throw Error(`Unknown byte code`);
         }
 
-        const offer = this.warp.contract(offerId).connect(this.signer);
+        const offer = this.warp.contract(offerId).connect(this.signer).setEvaluationOptions({ internalWrites: true });
 
         await offer.writeInteraction(
             {
                 function: 'acceptSeller',
             },
-            { strict: true }
         );
     }
 
