@@ -2,15 +2,14 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-contract TeleportEscrow {
+contract TeleportEscrow is Initializable {
     enum Stage {
         PENDING,
-        FUNDED,
         CANCELED,
         FINALIZED
     }
-    event Funded(address receiver, uint256 amount, address token);
     event Canceled(address receiver, uint256 amount, address token);
     event Finalized(address receiver, uint256 amount, address token);
 
@@ -20,16 +19,19 @@ contract TeleportEscrow {
     address public token;
     uint256 public amount;
     address public owner;
+    bytes32 public offerIdHash;
     Stage public stage;
 
-    constructor(
+    function initialize(
         uint256 lockTime,
         address _receiver,
         bytes32 _hashedPassword,
         uint256 _amount,
-        address _token
-    ) {
-        owner = msg.sender;
+        address _token,
+        address _owner,
+        bytes32 _offerIdHash // it is only needed for case were one seller has to offers, malicouse actor could buy them with one Escrow
+    ) external {
+        owner = _owner;
         require(lockTime >= 3600, "Lock time has to be >= 3600");
         expireAt = block.timestamp + lockTime;
         receiver = _receiver;
@@ -37,18 +39,8 @@ contract TeleportEscrow {
         require(_amount > 0, "Amount has to be > 0");
         amount = _amount;
         token = _token;
+        offerIdHash = _offerIdHash;
         stage = Stage.PENDING;
-    }
-
-    function markAsFunded() external {
-        uint256 myBalance = IERC20(token).balanceOf(address(this));
-        require(
-            myBalance >= amount,
-            "To mark as funded contract has to posses tokens"
-        );
-
-        stage = Stage.FUNDED;
-        emit Funded(receiver, amount, token);
     }
 
     function cancel() external {
@@ -56,7 +48,9 @@ contract TeleportEscrow {
             revert("Escrow not expired yet");
         }
 
-        if (stage == Stage.FUNDED) {
+        uint256 myBalance = IERC20(token).balanceOf(address(this));
+        // funded
+        if (myBalance >= amount) {
             IERC20(token).transfer(owner, amount);
         } else if (stage == Stage.CANCELED || stage == Stage.FINALIZED) {
             revert(
@@ -69,9 +63,7 @@ contract TeleportEscrow {
     }
 
     function finalize(string memory password) external {
-        if (stage != Stage.FUNDED) {
-            revert("Can finalize only in FUNDED stage");
-        }
+        assertFunded();
 
         if (keccak256(abi.encode(password)) != hashedPassword) {
             revert("Can not finalize wrong password");
@@ -79,5 +71,10 @@ contract TeleportEscrow {
 
         IERC20(token).transfer(receiver, amount);
         emit Finalized(receiver, amount, token);
+    }
+
+    function assertFunded() private view {
+        uint256 myBalance = IERC20(token).balanceOf(address(this));
+        require(myBalance >= amount, "Contract has to be funded");
     }
 }

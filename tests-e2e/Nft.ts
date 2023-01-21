@@ -25,5 +25,7 @@ export const deployNft = async (warp: Warp, signer: CustomSignature) => {
         { strict: true }
     );
 
-    return { nftContract: contract, contractTxId, nftId: '1' };
+    const { cachedValue: { state } } = await contract.readState();
+
+    return { nftContract: contract, contractTxId, nftId: (state as any).idCounter };
 };

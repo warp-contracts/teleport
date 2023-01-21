@@ -23,7 +23,7 @@ export async function handle(state, action) {
                     input.price,
                     input.priceTokenId,
                     input.expirePeriod,
-                    action.caller
+                    input.receiver ?? action.caller
                 ))
             })
         case 'cancel': {

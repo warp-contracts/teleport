@@ -1,9 +1,14 @@
 import { ethers, Signer } from "ethers";
 import { CustomSignature, Warp } from "warp-contracts";
+import ERC20 from "./ERC20";
 import TeleportEscrow from "./TeleportEscrow";
 
 const INIT_STATE = JSON.stringify({});
 export const TRUSTED_OFFER_SRC_TX_ID = "BqQywTrXd-v1hmqsxroUoyugwvz8gy-pkKdUBSd-rPA";
+
+function solidityKeccak(value: string) {
+    return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
+}
 
 export class Seller {
 
@@ -59,17 +64,38 @@ export class Seller {
 
         const stage = await escrow.stage();
 
-        if (stage !== 1) {
+        if (stage !== 0) {
             throw Error(`Wrong stage of escrow: ${stage}`)
         }
 
-        const byteCode = await this.evm.getCode(escrowId);
+        // TODO: I think we can't verify bytecode
+        // if (byteCode !== TeleportEscrow.deployedBytecode) {
+        //     throw Error(`Untrusted byte code`);
+        // }
 
-        if (byteCode !== TeleportEscrow.deployedBytecode) {
-            throw Error(`Unknown byte code`);
+        const escrowOfferIdHash = await escrow.offerIdHash();
+        if (escrowOfferIdHash !== solidityKeccak(offerId)) {
+            throw Error("Escrow was not created for this offer")
         }
 
         const offer = this.warp.contract(offerId).connect(this.signer).setEvaluationOptions({ internalWrites: true });
+
+        const { cachedValue: { state } } = await offer.readState();
+
+        const { priceTokenId: tokenId, price, owner } = (state as any);
+
+        const receiver = await escrow.receiver();
+        if (receiver !== owner) {
+            throw Error(`You are not receiver of escrow`);
+        }
+
+        const erc20 = new ethers.Contract(tokenId, ERC20.abi, this.evm);
+
+        const lockedFunds = await erc20.balanceOf(escrowId);
+
+        if (lockedFunds.toNumber() < Number.parseInt(price)) {
+            throw Error(`Escrow is not funded`);
+        }
 
         await offer.writeInteraction(
             {
@@ -79,6 +105,7 @@ export class Seller {
     }
 
     async finalize(escrowId: string, password: string) {
+        // TODO: password should fetched from events
         const escrow = new ethers.Contract(escrowId, TeleportEscrow.abi, this.evm);
 
         await escrow.connect(this.evmSigner).finalize(password);

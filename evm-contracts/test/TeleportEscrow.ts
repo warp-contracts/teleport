@@ -4,10 +4,10 @@ import { ethers } from "hardhat";
 
 enum EscrowStages {
   PENDING = 0,
-  FUNDED = 1,
-  CANCELED = 2,
-  FINALIZED = 3
+  CANCELED = 1,
+  FINALIZED = 2
 }
+
 
 describe("TeleportEscrow", function () {
 
@@ -29,14 +29,23 @@ describe("TeleportEscrow", function () {
     const amount = 10;
     const token = erc20.address;
 
-    const TeleportEscrow = await ethers.getContractFactory("TeleportEscrow");
-    const escrow = await TeleportEscrow.deploy(
+    const EscrowMaster = await ethers.getContractFactory("TeleportEscrow");
+    const escrowMaster = await EscrowMaster.deploy();
+    const TeleportEscrowFactory = await ethers.getContractFactory("TeleportEscrowFactory");
+    const teleportEscrowFactory = await TeleportEscrowFactory.deploy(escrowMaster.address);
+    const deployTx = await teleportEscrowFactory.createNewEscrow(
       lockTime,
       receiver,
       hashedPassword,
       amount,
-      token
-    );
+      token,
+      "0x" + "1".repeat(64)
+    ).then(tx => tx.wait());
+
+    // @ts-ignore
+    const escrowAddress = deployTx.events[0].args[0];
+
+    const escrow = await ethers.getContractAt("TeleportEscrow", escrowAddress);
 
     return { escrow, owner, otherAccount, erc20, lockTime, receiver, hashedPassword, amount, token };
   }
@@ -44,8 +53,6 @@ describe("TeleportEscrow", function () {
   async function deployAndFund() {
     const result = await deploy();
     await result.erc20.transfer(result.escrow.address, 10);
-
-    await result.escrow.markAsFunded();
 
     return result;
   }
@@ -56,38 +63,6 @@ describe("TeleportEscrow", function () {
     });
   });
 
-  describe("Funding", function () {
-    it("Should fail to mark contract as funded, if token were NOT sent", async () => {
-      const { escrow } = await loadFixture(deploy);
-
-      await expect(escrow.markAsFunded()).to.be.revertedWith(
-        "To mark as funded contract has to posses tokens"
-      );
-    });
-
-    it("Should mark contract as funded, if token were sent", async () => {
-      const { escrow, erc20 } = await loadFixture(deploy);
-
-      await erc20.transfer(escrow.address, 10);
-
-      await escrow.markAsFunded();
-
-      expect(await escrow.stage()).to.eq(EscrowStages.FUNDED);
-      expect(await erc20.balanceOf(escrow.address)).to.eq(10);
-    });
-
-    it("Should emit event after marking as funded", async () => {
-      const { escrow, erc20, receiver, amount, token } = await loadFixture(deploy);
-
-      await erc20.transfer(escrow.address, 10);
-
-      await expect(escrow.markAsFunded()).to.emit(escrow, "Funded").withArgs(
-        receiver,
-        amount,
-        token
-      );
-    });
-  });
 
   describe("Canceling", function () {
     it("Should cancel if stage FUNDED and date after ExpireAt", async () => {
@@ -148,7 +123,7 @@ describe("TeleportEscrow", function () {
       const { escrow } = await loadFixture(deploy);
 
       await expect(escrow.finalize("0x1")).to.be.revertedWith(
-        "Can finalize only in FUNDED stage"
+        "Contract has to be funded"
       );
     });
 

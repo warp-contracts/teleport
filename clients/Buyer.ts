@@ -1,13 +1,11 @@
 import { Contract, CustomSignature, Warp } from "warp-contracts";
 import { TRUSTED_OFFER_SRC_TX_ID } from "./Seller";
-import { ContractFactory, ethers, Signer } from 'ethers';
+import { ethers, Signer } from 'ethers';
 import EscrowEvm from './TeleportEscrow';
+import EscrowFactoryEvm from './TeleportEscrowFactory';
+import ERC20 from "./ERC20";
 
-const ERC20_ABI = [
-    "function balanceOf(address owner) view returns (uint256)",
-    "function transfer(address to, uint amount) returns (bool)",
-    "event Transfer(address indexed from, address indexed to, uint amount)"
-];
+const ESCROW_FACTORY_ADDRESS = "0x3Aa5ebB10DC797CAC828524e59A333d0A371443c";
 
 function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
@@ -36,9 +34,9 @@ export class Buyer {
             { strict: true }
         )
 
-        const { erc20, escrow } = await this.deployEscrow(offerState, password); // cost?? becaon proxy
+        const { erc20, escrow } = await this.deployEscrow({ ...offerState, offerId }, password);
 
-        await this.fundEscrow(erc20, escrow, offerState);
+        await this.fundEscrow(erc20, escrow, offerState.price);
 
         return { escrowId: escrow.address }
     }
@@ -83,21 +81,38 @@ export class Buyer {
         return offerState;
     }
 
-    private async fundEscrow(erc20: ethers.Contract, escrow: ethers.Contract, offerState: any) {
-        await erc20.connect(this.evmSigner).transfer(escrow.address, offerState.price, { gasLimit: 21000000 });
-        await escrow.connect(this.evmSigner).markAsFunded({ gasLimit: 21000000 });
+    private async fundEscrow(erc20: ethers.Contract, escrow: ethers.Contract, price: string) {
+        await erc20.connect(this.evmSigner).transfer(escrow.address, price, { gasLimit: 21000000 });
     }
 
-    private async deployEscrow(offerState: any, password: string) {
-        const erc20 = new ethers.Contract(offerState.priceTokenId, ERC20_ABI, this.evm).connect(this.evmSigner);
-        const escrowFactory = new ContractFactory(EscrowEvm.abi, EscrowEvm.bytecode, this.evmSigner);
-        const escrow = await escrowFactory.deploy(
+    async deployEscrow({ owner, price, priceTokenId, offerId }: any, password: string) {
+        const offerIdHash = solidityKeccak(offerId);
+        const erc20 = new ethers.Contract(priceTokenId, ERC20.abi, this.evm).connect(this.evmSigner);
+        const escrowFactory = new ethers.Contract(ESCROW_FACTORY_ADDRESS, EscrowFactoryEvm.abi, this.evm).connect(this.evmSigner);
+
+        const deployTx = await escrowFactory.createNewEscrow(
             36000,
-            offerState.owner,
+            owner,
             solidityKeccak(password),
-            offerState.price,
-            offerState.priceTokenId
-        ); // cost?? becaon proxy
-        return { erc20, escrow };
+            price,
+            priceTokenId,
+            offerIdHash
+        ).then((tx: any) => tx.wait());
+
+        if (
+            deployTx.events
+            &&
+            deployTx.events.length === 1
+            &&
+            deployTx.events[0].args
+            &&
+            deployTx.events[0].args.length === 2
+        ) {
+            const escrowAddress = deployTx.events[0].args[0];
+            const escrow = new ethers.Contract(escrowAddress, EscrowEvm.abi, this.evm).connect(this.evmSigner);
+            return { erc20, escrow }
+        } else {
+            throw Error("Failed to get deployed escrow address")
+        }
     }
 }
