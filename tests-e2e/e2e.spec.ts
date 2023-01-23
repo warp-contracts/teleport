@@ -9,10 +9,6 @@ import { deployNft } from "./Nft";
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
-function solidityKeccak(value: string) {
-    return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
-}
-
 export const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 const ERC20_ABI = [

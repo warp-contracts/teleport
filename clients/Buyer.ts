@@ -5,7 +5,7 @@ import EscrowEvm from './TeleportEscrow';
 import EscrowFactoryEvm from './TeleportEscrowFactory';
 import ERC20 from "./ERC20";
 
-const ESCROW_FACTORY_ADDRESS = "0x3Aa5ebB10DC797CAC828524e59A333d0A371443c";
+const ESCROW_FACTORY_ADDRESS = "0x36C02dA8a0983159322a80FFE9F24b1acfF8B570";
 
 function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));

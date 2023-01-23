@@ -6,7 +6,10 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 contract TeleportEscrowFactory {
     address public implementationContract;
 
-    event NewTeleportEscrow(address instance, bytes32 offerIdHash);
+    event NewTeleportEscrow(
+        address indexed instance,
+        bytes32 indexed offerIdHash
+    );
 
     constructor(address _implementation) {
         implementationContract = _implementation;
