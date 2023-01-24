@@ -37,8 +37,8 @@ async function main() {
     console.log("NFT owner: ", ownerBefore);
     // end of set-up
 
-    const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE);
-    const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB)
+    const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider));
+    const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider))
 
     const { offerId } = await seller.createOffer(
         ALICE_NFT.contractTxId,

@@ -1,6 +1,6 @@
 import { Seller } from "../clients/Seller";
 //@ts-ignore
-import { evmSignature } from 'warp-contracts-plugin-signature/server';
+import { buildEvmSignature } from 'warp-contracts-plugin-signature/server';
 import { ethers, Signer } from "ethers";
 import { WarpFactory } from "warp-contracts";
 import { EthersExtension } from "warp-contracts-plugin-ethers";
@@ -17,7 +17,7 @@ const ERC20_ABI = [
     "event Transfer(address indexed from, address indexed to, uint amount)"
 ];
 
-const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: evmSignature(ethersSigner), type: 'ethereum' as const })
+const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature(ethersSigner), type: 'ethereum' as const })
 const evmProvider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545");
 const ALICE = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
 const BOB = new ethers.Wallet("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
@@ -35,8 +35,8 @@ describe('e2e tests', () => {
         const ALICE_NFT = await deployNft(warp, makeWarpEvmSigner(ALICE));
         await ALICE_NFT.nftContract.viewState({ function: 'ownerOf', tokenId: ALICE_NFT.nftId })
 
-        const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE);
-        const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB)
+        const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider));
+        const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider))
 
         const price = '10';
         const { offerId } = await seller.createOffer(
@@ -72,7 +72,7 @@ describe('e2e tests', () => {
 
         const NFT_A = await deployNft(warp, makeWarpEvmSigner(ALICE));
 
-        const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE);
+        const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider));
 
         await seller.createOffer(NFT_A.contractTxId, NFT_A.nftId, '1', TEST_PAYMENT_TOKEN);
 
@@ -92,9 +92,9 @@ describe('e2e tests', () => {
             const ALICE_NFT = await deployNft(warp, makeWarpEvmSigner(ALICE));
             const BOB_NFT = await deployNft(warp, makeWarpEvmSigner(BOB));
 
-            const sellerAlice = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE);
-            const sellerBob = new Seller(makeWarpEvmSigner(BOB), warp, evmProvider, BOB);
-            const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB)
+            const sellerAlice = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider));
+            const sellerBob = new Seller(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider));
+            const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider))
 
             const price = '10';
             const offerAlice = await sellerAlice.createOffer(
@@ -133,9 +133,9 @@ describe('e2e tests', () => {
 
         const ALICE_NFT = await deployNft(warp, makeWarpEvmSigner(ALICE));
 
-        const sellerAlice = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE);
-        const buyerAlice = new Buyer(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE);
-        const buyerBob = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB)
+        const sellerAlice = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider));
+        const buyerAlice = new Buyer(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider));
+        const buyerBob = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider))
 
         const price = '10';
         const offerAlice = await sellerAlice.createOffer(

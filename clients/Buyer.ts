@@ -1,11 +1,9 @@
 import { Contract, CustomSignature, Warp } from "warp-contracts";
-import { TRUSTED_OFFER_SRC_TX_ID } from "./Seller";
 import { ethers, Signer } from 'ethers';
 import EscrowEvm from './TeleportEscrow';
 import EscrowFactoryEvm from './TeleportEscrowFactory';
 import ERC20 from "./ERC20";
-
-const ESCROW_FACTORY_ADDRESS = "0x36C02dA8a0983159322a80FFE9F24b1acfF8B570";
+import { ESCROW_FACTORY_ADDRESS, TRUSTED_OFFER_SRC_TX_ID } from "./Constants";
 
 function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
@@ -19,7 +17,6 @@ export class Buyer {
         private readonly evm: ethers.providers.JsonRpcProvider,
         private readonly evmSigner: Signer
     ) {
-        this.evmSigner = this.evmSigner.connect(this.evm)
     }
 
     async acceptOffer(offerId: string, password: string) {
@@ -32,7 +29,7 @@ export class Buyer {
         await offerContract.writeInteraction(
             { function: 'acceptBuyer', hashedPassword: solidityKeccak(password) },
             { strict: true }
-        )
+        );
 
         const { erc20, escrow } = await this.deployEscrow({ ...offerState, offerId }, password);
 
@@ -102,11 +99,11 @@ export class Buyer {
         if (
             deployTx.events
             &&
-            deployTx.events.length === 1
+            deployTx.events.length >= 1
             &&
             deployTx.events[0].args
             &&
-            deployTx.events[0].args.length === 2
+            deployTx.events[0].args.length >= 1
         ) {
             const escrowAddress = deployTx.events[0].args[0];
             const escrow = new ethers.Contract(escrowAddress, EscrowEvm.abi, this.evm).connect(this.evmSigner);

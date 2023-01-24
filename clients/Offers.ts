@@ -1,4 +1,5 @@
 import { Contract, ethers } from "ethers";
+import { Warp } from "warp-contracts";
 import TeleportEscrowFactory from "./TeleportEscrowFactory";
 
 type FetchedEscrow = {
@@ -9,7 +10,7 @@ function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
 }
 
-async function fetchEscrowsForOffer(
+export async function fetchEscrowsForOffer(
     evmProvider: ethers.providers.JsonRpcProvider,
     forOfferId: string,
     factoryAddress: string
@@ -21,11 +22,11 @@ async function fetchEscrowsForOffer(
     const events = await contract.queryFilter(filter);
 
     return events.map(event => ({
-        id: event.args.instance,
+        id: event?.args?.instance,
     }));
 }
 
-async function listenForNewEscrowForOffer(
+export async function listenForNewEscrowForOffer(
     evmProvider: ethers.providers.JsonRpcProvider,
     forOfferId: string,
     listener: (escrow: FetchedEscrow) => void,
@@ -38,33 +39,43 @@ async function listenForNewEscrowForOffer(
     contract.on(filter, listener)
 }
 
-const LIMIT = 5000;
-async function fetchAllOffers(
-    factoryAddress: string
+export async function fetchAllOffers(
+    factoryAddress: string,
+    warp: Warp,
+    limit = 10
 ) {
     const response = await fetch(
-        `https://gateway.redstone.finance/gateway/contracts-by-source?id=${factoryAddress}&limit=${LIMIT}`
+        `https://gateway.redstone.finance/gateway/contracts-by-source?id=${factoryAddress}&limit=${limit}`
     ).then(resp => resp.json());
 
-    if (response.pages >= LIMIT) {
+    if (response.pages >= limit) {
         throw Error("Paging not implemented for /gateway/contracts-by-source")
     }
 
-    return response.contracts.map((contract: any) => ({
-        id: contract.contractId,
-        owner: contract.owner
-    }))
+    const all = [];
+    if (warp) {
+        const batchSize = 10;
+        let promises = [];
+        for (let i = 0; i < response.contracts.length; i++) {
+
+            const result = warp.contract(response.contracts[i].contractId)
+                .setEvaluationOptions({ internalWrites: true })
+                .readState()
+                .then((value: any) => ({
+                    ...value.cachedValue.state,
+                    id: response.contracts[i].contractId,
+                    owner: response.contracts[i].owner
+                }));
+
+
+            promises.push(result)
+            if (i % batchSize === batchSize - 1) {
+                all.push(...(await Promise.all(promises)))
+                promises = [];
+            }
+        }
+    }
+
+    return all;
 }
 
-
-const evmProvider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545");
-
-fetchEscrowsForOffer(
-    evmProvider,
-    "UgSoCIQigWGKv3pp9brEEpP2Dg4eWqe8nSOMnkF044o",
-    "0x36C02dA8a0983159322a80FFE9F24b1acfF8B570"
-).then(console.log)
-
-fetchAllOffers(
-    "BqQywTrXd-v1hmqsxroUoyugwvz8gy-pkKdUBSd-rPA"
-).then(console.log)

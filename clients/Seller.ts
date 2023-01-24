@@ -1,10 +1,10 @@
 import { ethers, Signer } from "ethers";
 import { CustomSignature, Warp } from "warp-contracts";
+import { TRUSTED_OFFER_SRC_TX_ID } from "./Constants";
 import ERC20 from "./ERC20";
 import TeleportEscrow from "./TeleportEscrow";
 
 const INIT_STATE = JSON.stringify({});
-export const TRUSTED_OFFER_SRC_TX_ID = "BqQywTrXd-v1hmqsxroUoyugwvz8gy-pkKdUBSd-rPA";
 
 function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
