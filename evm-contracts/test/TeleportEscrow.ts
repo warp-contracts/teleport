@@ -150,9 +150,9 @@ describe("TeleportEscrow", function () {
 
       await expect(escrow.finalize("ala_ma_kota")).to.emit(escrow, "Finalized")
         .withArgs(
+          "0x" + "1".repeat(64),
           otherAccount.address,
-          10,
-          erc20.address
+          "ala_ma_kota"
         )
     });
   });

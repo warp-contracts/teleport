@@ -10,8 +10,16 @@ contract TeleportEscrow is Initializable {
         CANCELED,
         FINALIZED
     }
-    event Canceled(address receiver, uint256 amount, address token);
-    event Finalized(address receiver, uint256 amount, address token);
+    event Canceled(
+        bytes32 indexed offerIdHash,
+        address receiver,
+        address owner
+    );
+    event Finalized(
+        bytes32 indexed offerIdHash,
+        address receiver,
+        string password
+    );
 
     uint256 public expireAt;
     address public receiver;
@@ -59,7 +67,7 @@ contract TeleportEscrow is Initializable {
         }
 
         stage = Stage.CANCELED;
-        emit Canceled(receiver, amount, token);
+        emit Canceled(offerIdHash, receiver, owner);
     }
 
     function finalize(string memory password) external {
@@ -70,7 +78,7 @@ contract TeleportEscrow is Initializable {
         }
 
         IERC20(token).transfer(receiver, amount);
-        emit Finalized(receiver, amount, token);
+        emit Finalized(offerIdHash, receiver, password);
     }
 
     function assertFunded() private view {

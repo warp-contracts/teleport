@@ -1,5 +1,6 @@
 import { Contract, ethers } from "ethers";
 import { Warp } from "warp-contracts";
+import { ESCROW_FACTORY_ADDRESS } from "./Constants";
 import TeleportEscrowFactory from "./TeleportEscrowFactory";
 
 type FetchedEscrow = {
@@ -39,6 +40,12 @@ export async function listenForNewEscrowForOffer(
     contract.on(filter, listener)
 }
 
+// export async fetchEscrowPassword(
+//     evmProvider: ethers.providers.J
+// ) {
+
+// }
+
 export async function fetchAllOffers(
     factoryAddress: string,
     warp: Warp,
@@ -64,7 +71,7 @@ export async function fetchAllOffers(
                 .then((value: any) => ({
                     ...value.cachedValue.state,
                     id: response.contracts[i].contractId,
-                    owner: response.contracts[i].owner
+                    creator: response.contracts[i].owner
                 }));
 
 
@@ -78,4 +85,5 @@ export async function fetchAllOffers(
 
     return all;
 }
+
 

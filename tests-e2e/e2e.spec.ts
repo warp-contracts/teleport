@@ -52,7 +52,7 @@ describe('e2e tests', () => {
 
         await buyer.finalize(offerId, "password");
 
-        await seller.finalize(escrowId, "password")
+        await seller.finalize(escrowId, offerId);
 
         const { result: ownerAfter } = await ALICE_NFT.nftContract.viewState({ function: 'ownerOf', tokenId: ALICE_NFT.nftId })
 

@@ -18,10 +18,9 @@ export class Seller {
         private readonly evm: ethers.providers.JsonRpcProvider,
         private readonly evmSigner: Signer
     ) {
-        this.evmSigner = this.evmSigner.connect(this.evm)
     }
 
-    async createOffer(nftContractId: string, nftId: string, price: string, priceTokenId: string) {
+    async createOffer(nftContractId: string, nftId: string, price: string, priceTokenId: string, receiver?: string) {
         const deployment =
             await this.warp.deployFromSourceTx({
                 srcTxId: TRUSTED_OFFER_SRC_TX_ID,
@@ -48,6 +47,7 @@ export class Seller {
                 price,
                 priceTokenId,
                 expirePeriod: 3600,
+                receiver
             },
             { strict: true }
         );
@@ -104,11 +104,17 @@ export class Seller {
         );
     }
 
-    async finalize(escrowId: string, password: string) {
-        // TODO: password should fetched from events
+    async finalize(escrowId: string, offerId: string) {
         const escrow = new ethers.Contract(escrowId, TeleportEscrow.abi, this.evm);
+        const offer = this.warp.contract<any>(offerId).connect(this.signer).setEvaluationOptions({ internalWrites: true });
 
-        await escrow.connect(this.evmSigner).finalize(password);
+        const { cachedValue: { state } } = await offer.readState();
+
+        if (!state.password) {
+            throw Error(`Password not relieved`)
+        }
+
+        await escrow.connect(this.evmSigner).finalize(state.password);
     }
 
 

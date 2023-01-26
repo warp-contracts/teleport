@@ -1,6 +1,6 @@
 import { Seller } from "../clients/Seller";
 //@ts-ignore
-import { evmSignature } from 'warp-contracts-plugin-signature/server';
+import { buildEvmSignature } from 'warp-contracts-plugin-signature/server';
 import { ethers, Signer } from "ethers";
 import { WarpFactory } from "warp-contracts";
 import { EthersExtension } from "warp-contracts-plugin-ethers";
@@ -14,7 +14,7 @@ const ERC20_ABI = [
     "event Transfer(address indexed from, address indexed to, uint amount)"
 ];
 
-const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: evmSignature(ethersSigner), type: 'ethereum' as const })
+const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature(ethersSigner), type: 'ethereum' as const })
 
 async function main() {
     // set-up
@@ -27,6 +27,7 @@ async function main() {
     console.log("BOB: ", BOB.address);
 
     console.log("ALICE BALANCE ", (await erc20.balanceOf(ALICE.address)).toNumber());
+
 
     const warp = WarpFactory
         .forMainnet()
@@ -57,7 +58,7 @@ async function main() {
     await buyer.finalize(offerId, "password");
     console.log(`Buyer: Finalized offer and revealed password: password`)
 
-    await seller.finalize(escrowId, "password")
+    await seller.finalize(escrowId, offerId)
     console.log(`Seller: Withdraw money from escrow using revealed password`)
 
     console.log("ALICE BALANCE ", (await erc20.balanceOf(ALICE.address)).toNumber());

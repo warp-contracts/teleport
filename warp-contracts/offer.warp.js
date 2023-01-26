@@ -178,6 +178,7 @@ class Offer {
         )
 
         this.stage = OFFER_STAGE.FINALIZED;
+        this.password = password;
 
         return this;
     }
@@ -209,7 +210,8 @@ const OFFER_KEYS = [
     'expireAt',
     'expirePeriod',
     'buyer',
-    'hashedPassword'
+    'hashedPassword',
+    'password'
 ];
 
 function serializeOffer(offer) {
