@@ -13,10 +13,12 @@
         - Jak zebrac NFT?
             - coś co w polu data ma duzo contentu
             - praca dla aggragte node to jest dla PST wyglada to teraz tak: https://github.com/warp-contracts/warp-aggregate-node/blob/83a15dbcdee218f4fe2392303559bb83d7d7edf9/src/db/DbUpdates.mjs#L40
-
-
-- [ ] UI
+- [X] UI
+- [X] kto ma otrzymac kase na EVM podanie adresu w offercie
 - [ ] staly link miedzy adresem arweave a evm 
-- [ ] kto ma otrzymac kase na EVM podanie adresu w offercie
 
-- [ ]  https://github.com/warp-contracts/warp/issues/323 -   INIT_STATE = 'Init-State',
+- [ ] Wielokrotne podpisywania transakcji :(
+
+- Jaki chcemy miec efekt koncowy?
+- Chcemy to wdrozyc zeby bylo uzywalne?
+- Chcemy miec demo eby komuś pokazać flow? + np. napisać o tym artykuł

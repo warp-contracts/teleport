@@ -4,6 +4,7 @@ import EscrowEvm from './TeleportEscrow';
 import EscrowFactoryEvm from './TeleportEscrowFactory';
 import ERC20 from "./ERC20";
 import { ESCROW_FACTORY_ADDRESS, TRUSTED_OFFER_SRC_TX_ID } from "./Constants";
+import { SafeContract } from "./SafeContract";
 
 function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
@@ -20,16 +21,18 @@ export class Buyer {
     }
 
     async acceptOffer(offerId: string, password: string) {
-        const offerContract = this.warp.contract(offerId).setEvaluationOptions(
-            { internalWrites: true }
-        ).connect(this.warpSigner);
+        const offerContract = new SafeContract(this.warp, this.warpSigner, offerId);
 
-        const offerState = await this.verifyOffer(offerContract, offerId);
+        let offerState = await offerContract.read();
+        await this.verifyOffer(offerState, offerId);
 
-        await offerContract.writeInteraction(
+        offerState = await offerContract.call(
             { function: 'acceptBuyer', hashedPassword: solidityKeccak(password) },
-            { strict: true }
         );
+
+        if (offerState.stage !== "ACCEPTED_BY_BUYER") {
+            throw Error("Failed to read state");
+        }
 
         const { erc20, escrow } = await this.deployEscrow({ ...offerState, offerId }, password);
 
@@ -39,29 +42,20 @@ export class Buyer {
     }
 
     async finalize(offerId: string, password: string) {
-        const offerContract = this.warp.contract(offerId).setEvaluationOptions(
-            { internalWrites: true }
-        ).connect(this.warpSigner);
+        const offerContract = new SafeContract(this.warp, this.warpSigner, offerId);
 
-        const { cachedValue: { state } } = await offerContract.readState();
-
-        const offerState = state as any;
+        const offerState = await offerContract.read();
 
         if (offerState.stage !== 'ACCEPTED_BY_SELLER') {
             throw Error(`Wrong offer stage: ${offerState.stage}`)
         }
 
-        await offerContract.writeInteraction(
-            { function: 'finalize', password },
-            { strict: true }
-        );
+        await offerContract.call(
+            { function: 'finalize', password }
+        )
     }
 
-    private async verifyOffer(offerContract: Contract, offerId: string) {
-        const { cachedValue: { state } } = await offerContract.readState();
-
-        const offerState = state as any;
-
+    private async verifyOffer(offerState: any, offerId: string) {
         if (offerState.stage !== 'PENDING') {
             throw Error(`Wrong offer stage: ${offerState.stage}`);
         }
@@ -79,7 +73,7 @@ export class Buyer {
     }
 
     private async fundEscrow(erc20: ethers.Contract, escrow: ethers.Contract, price: string) {
-        await erc20.connect(this.evmSigner).transfer(escrow.address, price, { gasLimit: 21000000 });
+        await erc20.connect(this.evmSigner).transfer(escrow.address, price, { gasLimit: 21000000 }).then((tx: any) => tx.wait());
     }
 
     async deployEscrow({ owner, price, priceTokenId, offerId }: any, password: string) {

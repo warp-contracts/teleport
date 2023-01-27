@@ -1,6 +1,6 @@
 import { Contract, ethers } from "ethers";
 import { Warp } from "warp-contracts";
-import { ESCROW_FACTORY_ADDRESS } from "./Constants";
+import { ESCROW_FACTORY_ADDRESS, TRUSTED_OFFER_SRC_TX_ID } from "./Constants";
 import TeleportEscrowFactory from "./TeleportEscrowFactory";
 
 type FetchedEscrow = {
@@ -11,12 +11,11 @@ function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
 }
 
-export async function fetchEscrowsForOffer(
+export async function fetchEscrowsByOfferId(
     evmProvider: ethers.providers.JsonRpcProvider,
     forOfferId: string,
-    factoryAddress: string
 ): Promise<FetchedEscrow[]> {
-    const contract = new Contract(factoryAddress, TeleportEscrowFactory.abi, evmProvider);
+    const contract = new Contract(ESCROW_FACTORY_ADDRESS, TeleportEscrowFactory.abi, evmProvider);
     const forOfferIdHash = solidityKeccak(forOfferId);
     const filter = contract.filters.NewTeleportEscrow(null, forOfferIdHash)
 
@@ -27,63 +26,64 @@ export async function fetchEscrowsForOffer(
     }));
 }
 
-export async function listenForNewEscrowForOffer(
+export async function listenForNewEscrowByOfferId(
     evmProvider: ethers.providers.JsonRpcProvider,
     forOfferId: string,
     listener: (escrow: FetchedEscrow) => void,
-    factoryAddress: string
 ) {
-    const contract = new Contract(factoryAddress, TeleportEscrowFactory.abi, evmProvider);
+    const contract = new Contract(ESCROW_FACTORY_ADDRESS, TeleportEscrowFactory.abi, evmProvider);
     const forOfferIdHash = solidityKeccak(forOfferId);
     const filter = contract.filters.NewTeleportEscrow(null, forOfferIdHash)
 
     contract.on(filter, listener)
 }
 
-// export async fetchEscrowPassword(
-//     evmProvider: ethers.providers.J
-// ) {
+type ContractBySource = {
+    "contractId": string,
+    "owner": string,
+    "bundlerTxId": string,
+    "blockHeight": number,
+    "blockTimestamp": string,
+    "interactions": string
+}
 
-// }
+export async function fetchAllOffersId(
+    limit = 5000
+): Promise<{ contracts: ContractBySource[], pages: any }> {
 
-export async function fetchAllOffers(
-    factoryAddress: string,
-    warp: Warp,
-    limit = 10
-) {
     const response = await fetch(
-        `https://gateway.redstone.finance/gateway/contracts-by-source?id=${factoryAddress}&limit=${limit}`
+        `https://gateway.redstone.finance/gateway/contracts-by-source?id=${TRUSTED_OFFER_SRC_TX_ID}&limit=${limit}&sort=desc`
     ).then(resp => resp.json());
 
-    if (response.pages >= limit) {
+    if (response.paging.total >= limit) {
         throw Error("Paging not implemented for /gateway/contracts-by-source")
     }
 
+    return response;
+}
+
+export async function batchEvaluateOffers(warp: Warp, contracts: ContractBySource[], batchSize = 10) {
     const all = [];
-    if (warp) {
-        const batchSize = 10;
-        let promises = [];
-        for (let i = 0; i < response.contracts.length; i++) {
+    let promises = [];
+    for (let i = 0; i < contracts.length; i++) {
+        const result = warp.contract(contracts[i].contractId)
+            .setEvaluationOptions({ internalWrites: true })
+            .readState()
+            .then((value: any) => ({
+                ...value.cachedValue.state,
+                id: contracts[i].contractId,
+                creator: contracts[i].owner
+            }));
 
-            const result = warp.contract(response.contracts[i].contractId)
-                .setEvaluationOptions({ internalWrites: true })
-                .readState()
-                .then((value: any) => ({
-                    ...value.cachedValue.state,
-                    id: response.contracts[i].contractId,
-                    creator: response.contracts[i].owner
-                }));
+        promises.push(result);
 
-
-            promises.push(result)
-            if (i % batchSize === batchSize - 1) {
-                all.push(...(await Promise.all(promises)))
-                promises = [];
-            }
+        if (i % batchSize === batchSize - 1) {
+            all.push(...(await Promise.all(promises)));
+            promises = [];
         }
     }
 
+    all.push(...(await Promise.all(promises)));
+
     return all;
 }
-
-

@@ -1,1 +1,8 @@
 @import 'bulma/css/bulma.css';
+
+
+.navbar {
+    height: 9%;
+    display: flex;
+    justify-content: center;
+}

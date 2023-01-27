@@ -9,7 +9,8 @@
     "test:evm": "pushd evm-contracts && hardhat test && popd",
     "test:e2e": "node --loader tsx --test tests-e2e/e2e.spec.ts",
     "demo:node": "ts-node tests-e2e/demo.ts",
-    "test:all": "npm run test:spec && npm run test:evm && npm run test:warp"
+    "test:all": "npm run test:spec && npm run test:evm && npm run test:warp",
+    "deploy:local": "pushd evm-contracts && hardhat run scripts/deploy.ts --network localhost && popd && node warp-contracts/deployOfferSourceTx.mjs"
   },
   "repository": {
     "type": "git",
@@ -28,8 +29,9 @@
     "ethers": "^5.7.2",
     "gun": "^0.2020.1239",
     "hardhat": "^2.12.6",
+    "redstone-wasm-metering": "^1.0.5",
     "typescript": "^4.9.4",
-    "warp-contracts": "^1.2.48-beta.1",
+    "warp-contracts": "file:../warp",
     "warp-contracts-plugin-ethers": "^1.0.7",
     "warp-contracts-plugin-signature": "^1.0.9"
   },

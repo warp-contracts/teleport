@@ -116,29 +116,14 @@ function Footer() {
 
 function Nav() {
   return (
-    <nav className="navbar" role="navigation" aria-label="main navigation">
-      < div className="navbar-brand" >
-        <a className="navbar-item is-size-2 is-uppercase is-family-monospace">
-          Teleport
-        </a>
+    <nav className="navbar has-text-centered" role="navigation" aria-label="main navigation">
+      {/* < div className="navbar-brand has-text-centered" > */}
+      <a className="navbar-item is-size-1 is-uppercase is-family-monospace">
+        Teleport
+      </a>
 
-      </div >
+      {/* </div > */}
 
-      <div id="navbarBasicExample" className="navbar-menu">
-        <div className="navbar-end">
-          <div className="navbar-item">
-            <div className="buttons">
-              <a className="button is-primary">
-                <strong>Buyer</strong>
-              </a>
-              <a className="button is-light">
-                Seller
-              </a>
-
-            </div>
-          </div>
-        </div>
-      </div>
     </nav >
   )
 }

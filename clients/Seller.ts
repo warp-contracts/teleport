@@ -2,6 +2,7 @@ import { ethers, Signer } from "ethers";
 import { CustomSignature, Warp } from "warp-contracts";
 import { TRUSTED_OFFER_SRC_TX_ID } from "./Constants";
 import ERC20 from "./ERC20";
+import { SafeContract } from "./SafeContract";
 import TeleportEscrow from "./TeleportEscrow";
 
 const INIT_STATE = JSON.stringify({});
@@ -35,11 +36,11 @@ export class Seller {
         const offer = this.getWarpContract(deployment.contractTxId);
         const nft = this.getWarpContract(nftContractId);
 
-        await nft.writeInteraction(
+        await nft.call(
             { function: 'transfer', tokenId: nftId, to: deployment.contractTxId },
         );
 
-        await offer.writeInteraction(
+        await offer.call(
             {
                 function: 'create',
                 nftContractId,
@@ -49,14 +50,13 @@ export class Seller {
                 expirePeriod: 3600,
                 receiver
             },
-            { strict: true }
         );
 
         return { offerId: deployment.contractTxId }
     }
 
     private getWarpContract(id: string) {
-        return this.warp.contract(id).connect(this.signer).setEvaluationOptions({ internalWrites: true });
+        return new SafeContract(this.warp, this.signer, id);
     }
 
     async acceptEscrow(escrowId: string, offerId: string) {
@@ -78,9 +78,8 @@ export class Seller {
             throw Error("Escrow was not created for this offer")
         }
 
-        const offer = this.warp.contract(offerId).connect(this.signer).setEvaluationOptions({ internalWrites: true });
-
-        const { cachedValue: { state } } = await offer.readState();
+        const offer = this.getWarpContract(offerId);
+        const state = await offer.read();
 
         const { priceTokenId: tokenId, price, owner } = (state as any);
 
@@ -97,7 +96,7 @@ export class Seller {
             throw Error(`Escrow is not funded`);
         }
 
-        await offer.writeInteraction(
+        await offer.call(
             {
                 function: 'acceptSeller',
             },
@@ -106,15 +105,15 @@ export class Seller {
 
     async finalize(escrowId: string, offerId: string) {
         const escrow = new ethers.Contract(escrowId, TeleportEscrow.abi, this.evm);
-        const offer = this.warp.contract<any>(offerId).connect(this.signer).setEvaluationOptions({ internalWrites: true });
+        const offer = this.getWarpContract(offerId);
 
-        const { cachedValue: { state } } = await offer.readState();
+        const state = await offer.read();
 
         if (!state.password) {
             throw Error(`Password not relieved`)
         }
 
-        await escrow.connect(this.evmSigner).finalize(state.password);
+        await escrow.connect(this.evmSigner).finalize(state.password).then((tx: any) => tx.wait());
     }
 
 

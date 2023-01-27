@@ -77,6 +77,7 @@ contract TeleportEscrow is Initializable {
             revert("Can not finalize wrong password");
         }
 
+        stage = Stage.FINALIZED;
         IERC20(token).transfer(receiver, amount);
         emit Finalized(offerIdHash, receiver, password);
     }

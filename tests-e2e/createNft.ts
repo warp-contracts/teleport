@@ -20,7 +20,8 @@ async function main() {
     console.log(
         {
             nftId: ALICE_NFT.nftId,
-            contractId: ALICE_NFT.contractTxId
+            contractId: ALICE_NFT.contractTxId,
+            owner: BOB.address
         })
 }
 

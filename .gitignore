@@ -1,4 +1,5 @@
 # Logs
+app/src/client
 cache
 logs
 *.log
