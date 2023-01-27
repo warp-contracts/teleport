@@ -1,10 +1,10 @@
-import { Seller } from "../clients/Seller";
+import { Seller } from "../client/Seller";
 //@ts-ignore
 import { buildEvmSignature } from 'warp-contracts-plugin-signature/server';
 import { ethers, Signer } from "ethers";
 import { WarpFactory } from "warp-contracts";
 import { EthersExtension } from "warp-contracts-plugin-ethers";
-import { Buyer } from "../clients/Buyer";
+import { Buyer } from "../client/Buyer";
 import { deployNft } from "./Nft";
 import { describe, it } from 'node:test';
 import assert from 'node:assert';

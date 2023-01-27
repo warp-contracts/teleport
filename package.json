@@ -10,7 +10,10 @@
     "test:e2e": "node --loader tsx --test tests-e2e/e2e.spec.ts",
     "demo:node": "ts-node tests-e2e/demo.ts",
     "test:all": "npm run test:spec && npm run test:evm && npm run test:warp",
-    "deploy:local": "pushd evm-contracts && hardhat run scripts/deploy.ts --network localhost && popd && node warp-contracts/deployOfferSourceTx.mjs"
+    "deploy:local": "pushd evm-contracts && hardhat run scripts/deploy.ts --network localhost && popd && node warp-contracts/deployOfferSourceTx.mjs",
+    "build": "rm -rf dist && tsc --p tsconfig.build.json",
+    "update:ui": "npm run build && rm -rf ../teleport-app/src/client && cp -r dist/client ../teleport-app/src/client",
+    "createNft": "ts-node tests-e2e/createNft.ts"
   },
   "repository": {
     "type": "git",

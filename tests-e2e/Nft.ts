@@ -7,7 +7,6 @@ const CONTRACT_CODE = readFileSync(CONTRACT_PATH).toString();
 LoggerFactory.INST.logLevel('none');
 
 export const deployNft = async (warp: Warp, signer: CustomSignature) => {
-
     const { contractTxId } = await warp.deploy({
         wallet: signer,
         initState: JSON.stringify({

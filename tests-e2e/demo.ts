@@ -1,10 +1,10 @@
-import { Seller } from "../clients/Seller";
+import { Seller } from "../client/Seller";
 //@ts-ignore
 import { buildEvmSignature } from 'warp-contracts-plugin-signature/server';
 import { ethers, Signer } from "ethers";
 import { WarpFactory } from "warp-contracts";
 import { EthersExtension } from "warp-contracts-plugin-ethers";
-import { Buyer } from "../clients/Buyer";
+import { Buyer } from "../client/Buyer";
 import { deployNft } from "./Nft";
 
 export const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
