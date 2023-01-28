@@ -1,6 +1,5 @@
 import { ethers, Signer } from "ethers";
 import { CustomSignature, Warp } from "warp-contracts";
-import { TRUSTED_OFFER_SRC_TX_ID } from "./Constants";
 import ERC20 from "./ERC20";
 import { SafeContract } from "./SafeContract";
 import TeleportEscrow from "./TeleportEscrow";
@@ -17,14 +16,15 @@ export class Seller {
         private readonly signer: CustomSignature,
         private readonly warp: Warp,
         private readonly evm: ethers.providers.JsonRpcProvider,
-        private readonly evmSigner: Signer
+        private readonly evmSigner: Signer,
+        private readonly offerSrcTxId: string,
     ) {
     }
 
     async createOffer(nftContractId: string, nftId: string, price: string, priceTokenId: string, receiver?: string) {
         const deployment =
             await this.warp.deployFromSourceTx({
-                srcTxId: TRUSTED_OFFER_SRC_TX_ID,
+                srcTxId: this.offerSrcTxId,
                 wallet: this.signer,
                 initState: INIT_STATE,
                 evaluationManifest: {

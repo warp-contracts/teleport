@@ -1,6 +1,5 @@
 import { Contract, ethers } from "ethers";
 import { Warp } from "warp-contracts";
-import { ESCROW_FACTORY_ADDRESS, TRUSTED_OFFER_SRC_TX_ID } from "./Constants";
 import TeleportEscrowFactory from "./TeleportEscrowFactory";
 
 type FetchedEscrow = {
@@ -11,17 +10,30 @@ function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
 }
 
+const BLOCK_LIMIT = 1000;
 export async function fetchEscrowsByOfferId(
     evmProvider: ethers.providers.JsonRpcProvider,
     forOfferId: string,
+    escrowFactoryAddress: string
 ): Promise<FetchedEscrow[]> {
-    const contract = new Contract(ESCROW_FACTORY_ADDRESS, TeleportEscrowFactory.abi, evmProvider);
+    const contract = new Contract(escrowFactoryAddress, TeleportEscrowFactory.abi, evmProvider);
     const forOfferIdHash = solidityKeccak(forOfferId);
     const filter = contract.filters.NewTeleportEscrow(null, forOfferIdHash)
 
-    const events = await contract.queryFilter(filter);
+    const lastBlock = await evmProvider.getBlockNumber();
+    const firstBlock = lastBlock - (BLOCK_LIMIT * 6); // 1000 blocks * 2 seconds * 6 => 12_000 second ~ 3 hours
 
-    return events.map(event => ({
+    const promises = [];
+    const allEvents: ethers.Event[] = [];
+    for (let i = firstBlock; i += BLOCK_LIMIT; i < lastBlock) {
+        promises.push(
+            contract.queryFilter(filter, i, lastBlock)
+                .then(events => allEvents.push(...events))
+        )
+    }
+    await Promise.all(promises);
+
+    return allEvents.map(event => ({
         id: event?.args?.instance,
     }));
 }
@@ -30,8 +42,9 @@ export async function listenForNewEscrowByOfferId(
     evmProvider: ethers.providers.JsonRpcProvider,
     forOfferId: string,
     listener: (escrow: FetchedEscrow) => void,
+    escrowFactoryAddress: string
 ) {
-    const contract = new Contract(ESCROW_FACTORY_ADDRESS, TeleportEscrowFactory.abi, evmProvider);
+    const contract = new Contract(escrowFactoryAddress, TeleportEscrowFactory.abi, evmProvider);
     const forOfferIdHash = solidityKeccak(forOfferId);
     const filter = contract.filters.NewTeleportEscrow(null, forOfferIdHash)
 
@@ -48,11 +61,12 @@ type ContractBySource = {
 }
 
 export async function fetchAllOffersId(
-    limit = 5000
+    offerSrcTxId: string,
+    limit = 5000,
 ): Promise<{ contracts: ContractBySource[], pages: any }> {
 
     const response = await fetch(
-        `https://gateway.redstone.finance/gateway/contracts-by-source?id=${TRUSTED_OFFER_SRC_TX_ID}&limit=${limit}&sort=desc`
+        `https://gateway.redstone.finance/gateway/contracts-by-source?id=${offerSrcTxId}&limit=${limit}&sort=desc`
     ).then(resp => resp.json());
 
     if (response.paging.total >= limit) {

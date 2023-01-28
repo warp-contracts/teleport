@@ -1,9 +1,8 @@
-import { Contract, CustomSignature, Warp } from "warp-contracts";
+import { CustomSignature, Warp } from "warp-contracts";
 import { ethers, Signer } from 'ethers';
 import EscrowEvm from './TeleportEscrow';
 import EscrowFactoryEvm from './TeleportEscrowFactory';
 import ERC20 from "./ERC20";
-import { ESCROW_FACTORY_ADDRESS, TRUSTED_OFFER_SRC_TX_ID } from "./Constants";
 import { SafeContract } from "./SafeContract";
 
 function solidityKeccak(value: string) {
@@ -16,7 +15,9 @@ export class Buyer {
         private readonly warpSigner: CustomSignature,
         private readonly warp: Warp,
         private readonly evm: ethers.providers.JsonRpcProvider,
-        private readonly evmSigner: Signer
+        private readonly evmSigner: Signer,
+        private readonly offerSrcTxId: string,
+        private readonly escrowFactoryAddress: string
     ) {
     }
 
@@ -62,7 +63,7 @@ export class Buyer {
 
         const rawContract = await fetch(`https://gateway.redstone.finance/gateway/contract?txId=${offerId}`).then(res => res.json()).catch(err => { throw Error('Gateway error'); });
 
-        if (rawContract.srcTxId !== TRUSTED_OFFER_SRC_TX_ID) {
+        if (rawContract.srcTxId !== this.offerSrcTxId) {
             throw Error(`Src Tx Id is not trusted: ${rawContract.srcTxId}`);
         }
 
@@ -79,7 +80,7 @@ export class Buyer {
     async deployEscrow({ owner, price, priceTokenId, offerId }: any, password: string) {
         const offerIdHash = solidityKeccak(offerId);
         const erc20 = new ethers.Contract(priceTokenId, ERC20.abi, this.evm).connect(this.evmSigner);
-        const escrowFactory = new ethers.Contract(ESCROW_FACTORY_ADDRESS, EscrowFactoryEvm.abi, this.evm).connect(this.evmSigner);
+        const escrowFactory = new ethers.Contract(this.escrowFactoryAddress, EscrowFactoryEvm.abi, this.evm).connect(this.evmSigner);
 
         const deployTx = await escrowFactory.createNewEscrow(
             36000,

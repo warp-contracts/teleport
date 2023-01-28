@@ -23,3 +23,6 @@
 - Chcemy to wdrozyc zeby bylo uzywalne?
 - Chcemy miec demo eby komuś pokazać flow? + np. napisać o tym artykuł
 - Rozne wersje ofert w zaleznosci od intefejsu
+
+
+- [ ] uzywac ETH zamiast USDT
