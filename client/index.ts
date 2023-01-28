@@ -1,6 +1,7 @@
-
 export * from './Buyer';
 export * from './Seller';
 export * from './Offers';
-export * from './TeleportEscrow';
+export { default as TeleportEscrow } from './TeleportEscrow';
 export * from './ERC20';
+
+

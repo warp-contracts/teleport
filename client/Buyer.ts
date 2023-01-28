@@ -83,7 +83,7 @@ export class Buyer {
         const escrowFactory = new ethers.Contract(this.escrowFactoryAddress, EscrowFactoryEvm.abi, this.evm).connect(this.evmSigner);
 
         const deployTx = await escrowFactory.createNewEscrow(
-            36000,
+            3600,
             owner,
             solidityKeccak(password),
             price,

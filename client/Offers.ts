@@ -10,7 +10,8 @@ function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
 }
 
-const BLOCK_LIMIT = 1000;
+
+const BLOCK_LIMIT = 999;
 export async function fetchEscrowsByOfferId(
     evmProvider: ethers.providers.JsonRpcProvider,
     forOfferId: string,
@@ -23,15 +24,15 @@ export async function fetchEscrowsByOfferId(
     const lastBlock = await evmProvider.getBlockNumber();
     const firstBlock = lastBlock - (BLOCK_LIMIT * 6); // 1000 blocks * 2 seconds * 6 => 12_000 second ~ 3 hours
 
-    const promises = [];
     const allEvents: ethers.Event[] = [];
-    for (let i = firstBlock; i += BLOCK_LIMIT; i < lastBlock) {
-        promises.push(
-            contract.queryFilter(filter, i, lastBlock)
-                .then(events => allEvents.push(...events))
-        )
+    for (let i = firstBlock; i <= lastBlock; i += BLOCK_LIMIT) {
+        const fromBlock = '0x' + (i - BLOCK_LIMIT).toString(16);
+        const toBlock = '0x' + (i).toString(16);
+
+        const events = await contract.queryFilter(filter, fromBlock, toBlock);
+
+        allEvents.push(...events);
     }
-    await Promise.all(promises);
 
     return allEvents.map(event => ({
         id: event?.args?.instance,
