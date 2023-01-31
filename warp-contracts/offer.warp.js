@@ -3,13 +3,12 @@ const MINIMAL_LOCK_TIME = 3600;
 const OFFER_STAGE = {
     PENDING: 'PENDING',
     CANCELED: 'CANCELED',
-    ACCEPTED_BY_BUYER: 'ACCEPTED_BY_BUYER',
     ACCEPTED_BY_SELLER: 'ACCEPTED_BY_SELLER',
     FINALIZED: 'FINALIZED'
 }
 
 export async function handle(state, action) {
-    const { input, caller } = action;
+    const { input } = action;
 
     switch (input.function) {
         case 'create':
@@ -34,16 +33,8 @@ export async function handle(state, action) {
                 }
             );
         }
-        case 'acceptBuyer': {
-            const offer = await deserializeOffer(state).acceptBuyer(action.caller, input.hashedPassword);
-            return (
-                {
-                    state: serializeOffer(offer)
-                }
-            )
-        }
         case 'acceptSeller': {
-            const offer = await deserializeOffer(state).acceptSeller(action.caller);
+            const offer = await deserializeOffer(state).acceptSeller(action.caller, input.hashedPassword, input.buyerAddress);
             return (
                 {
                     state: serializeOffer(offer)
@@ -97,6 +88,7 @@ class Offer {
         offer.priceTokenId = priceTokenId;
         offer.owner = signer;
         offer.expirePeriod = expirePeriod;
+        this.expireAt = SmartWeave.block.timestamp + this.expirePeriod;
 
         await offer._isOfferOwnerOfNFT(signer);
 
@@ -113,7 +105,7 @@ class Offer {
             await SmartWeave.contracts.write(this.nftContractId,
                 { function: 'transfer', tokenId: this.nftId, to: this.owner }
             );
-        } else if (this.stage === OFFER_STAGE.ACCEPTED_BY_BUYER || this.stage === OFFER_STAGE.ACCEPTED_BY_SELLER) {
+        } else if (this.stage === OFFER_STAGE.ACCEPTED_BY_SELLER) {
             if (SmartWeave.block.timestamp < this.expireAt) {
                 revert(`Offer has to expire to be canceled`);
             }
@@ -132,30 +124,19 @@ class Offer {
         return this;
     }
 
-    async acceptBuyer(signer, hashedPassword) {
+    async acceptSeller(signer, hashedPassword, buyerAddress) {
         isNotEmptyString(hashedPassword);
+        isNotEmptyString(buyerAddress);
 
-        if (this.stage !== OFFER_STAGE.PENDING) {
-            revert(`Offer to be accepted by buyer has to be in stage PENDING`)
-        }
-
-        this.expireAt = SmartWeave.block.timestamp + this.expirePeriod;
-        this.hashedPassword = hashedPassword;
-        this.buyer = signer;
-        this.stage = OFFER_STAGE.ACCEPTED_BY_BUYER;
-
-        return this;
-    }
-
-    async acceptSeller(signer) {
         if (signer !== this.owner) {
             revert(`Owner required`)
         }
 
-        if (this.stage !== OFFER_STAGE.ACCEPTED_BY_BUYER) {
-            revert(`Offer to be accepted by seller has to be in stage ACCEPTED_BY_BUYER`)
+        if (this.stage !== OFFER_STAGE.PENDING) {
+            revert(`Offer to be accepted by seller has to be in stage PENDING`)
         }
-
+        this.hashedPassword = hashedPassword;
+        this.buyer = buyerAddress;
         this.stage = OFFER_STAGE.ACCEPTED_BY_SELLER;
 
         return this;

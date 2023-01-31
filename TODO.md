@@ -15,14 +15,8 @@
             - praca dla aggragte node to jest dla PST wyglada to teraz tak: https://github.com/warp-contracts/warp-aggregate-node/blob/83a15dbcdee218f4fe2392303559bb83d7d7edf9/src/db/DbUpdates.mjs#L40
 - [X] UI
 - [X] kto ma otrzymac kase na EVM podanie adresu w offercie
+- [ ] Indexowanie escrow po stronie backendu
+- [ ] Automatyzacja procesow (zrobienie backendu który będize kręcił niektóre operacje)
 - [ ] staly link miedzy adresem arweave a evm 
-
 - [ ] Wielokrotne podpisywania transakcji :(
-
-- Jaki chcemy miec efekt koncowy?
-- Chcemy to wdrozyc zeby bylo uzywalne?
-- Chcemy miec demo eby komuś pokazać flow? + np. napisać o tym artykuł
-- Rozne wersje ofert w zaleznosci od intefejsu
-
-
 - [ ] uzywac ETH zamiast USDT

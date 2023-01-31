@@ -27,14 +27,6 @@ export class Buyer {
         let offerState = await offerContract.read();
         await this.verifyOffer(offerState, offerId);
 
-        offerState = await offerContract.call(
-            { function: 'acceptBuyer', hashedPassword: solidityKeccak(password) },
-        );
-
-        if (offerState.stage !== "ACCEPTED_BY_BUYER") {
-            throw Error("Failed to read state");
-        }
-
         const { erc20, escrow } = await this.deployEscrow({ ...offerState, offerId }, password);
 
         await this.fundEscrow(erc20, escrow, offerState.price);
@@ -49,6 +41,14 @@ export class Buyer {
 
         if (offerState.stage !== 'ACCEPTED_BY_SELLER') {
             throw Error(`Wrong offer stage: ${offerState.stage}`)
+        }
+
+        if (offerState.buyer !== await this.evmSigner.getAddress()) {
+            throw Error(`You are not pointed as receiver of offer`)
+        }
+
+        if (offerState.hashedPassword !== solidityKeccak(password)) {
+            throw Error(`Hash of password from offer doesn't match with password from escrow`);
         }
 
         await offerContract.call(

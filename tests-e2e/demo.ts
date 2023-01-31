@@ -7,13 +7,14 @@ import { EthersExtension } from "warp-contracts-plugin-ethers";
 import { Buyer } from "../client/Buyer";
 import { deployNft } from "./Nft";
 
-export const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 const ERC20_ABI = [
     "function balanceOf(address owner) view returns (uint256)",
     "function transfer(address to, uint amount) returns (bool)",
     "event Transfer(address indexed from, address indexed to, uint amount)"
 ];
-
+const ESCROW_FACTORY_ADDRESS = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
+const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const OFFER_SRC_TX_ID = "j-9bfYEq0wFx81EcV6-ElLH_mnNlATl7z4auwMqzLR0";
 const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature(ethersSigner), type: 'ethereum' as const })
 
 async function main() {
@@ -38,8 +39,8 @@ async function main() {
     console.log("NFT owner: ", ownerBefore);
     // end of set-up
 
-    const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider));
-    const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider))
+    const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
+    const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider), OFFER_SRC_TX_ID, ESCROW_FACTORY_ADDRESS)
 
     const { offerId } = await seller.createOffer(
         ALICE_NFT.contractTxId,

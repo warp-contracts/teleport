@@ -32,6 +32,7 @@
     "dotenv": "^16.0.3",
     "ethers": "^5.7.2",
     "hardhat": "^2.12.6",
+    "koa": "^2.14.1",
     "redstone-wasm-metering": "^1.0.5",
     "typescript": "^4.9.4",
     "warp-contracts": "^1.2.49",

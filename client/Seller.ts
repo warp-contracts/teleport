@@ -99,6 +99,8 @@ export class Seller {
         await offer.call(
             {
                 function: 'acceptSeller',
+                hashedPassword: await escrow.hashedPassword(),
+                buyerAddress: await escrow.owner()
             },
         );
     }

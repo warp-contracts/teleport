@@ -9,7 +9,6 @@ import { deployNft } from "./Nft";
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
-export const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 const ERC20_ABI = [
     "function balanceOf(address owner) view returns (uint256)",
@@ -21,9 +20,9 @@ const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature
 const evmProvider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545");
 const ALICE = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
 const BOB = new ethers.Wallet("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
-const ESCROW_FACTORY_ADDRESS = "0xE3011A37A904aB90C8881a99BD1F6E21401f1522";
-const PAYMENT_TOKEN = "0x5bf5b11053e734690269C6B9D438F8C9d48F528A";
-const OFFER_SRC_TX_ID = "a9XM4xqx3aJbEKBWC5LnQCPlmS9SjTNa0pTqRAzQezI";
+const ESCROW_FACTORY_ADDRESS = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
+const OFFER_SRC_TX_ID = "j-9bfYEq0wFx81EcV6-ElLH_mnNlATl7z4auwMqzLR0";
+export const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 
 
 describe('e2e tests', () => {
@@ -130,7 +129,7 @@ describe('e2e tests', () => {
     })
 
 
-    it('One offer two escrows, first should win, second should be rejected', async () => {
+    it('One offer two escrows, only one should win, second should be rejected', async () => {
         const warp = WarpFactory
             .forMainnet({ inMemory: true, dbLocation: '' })
             .use(new EthersExtension());
@@ -139,7 +138,7 @@ describe('e2e tests', () => {
 
         const sellerAlice = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
         const buyerAlice = new Buyer(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID, ESCROW_FACTORY_ADDRESS);
-        const buyerBob = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider), OFFER_SRC_TX_ID)
+        const buyerBob = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider), OFFER_SRC_TX_ID, ESCROW_FACTORY_ADDRESS)
 
         const price = '10';
         const offerAlice = await sellerAlice.createOffer(
@@ -151,13 +150,18 @@ describe('e2e tests', () => {
 
         await buyerAlice.acceptOffer(offerAlice.offerId, "qwe");
 
+        const { escrowId: escrowIdAlice } = await buyerAlice.acceptOffer(offerAlice.offerId, "qwe2");
+        const { escrowId: escrowIdBob } = await buyerBob.acceptOffer(offerAlice.offerId, "qwe2");
+
+        await sellerAlice.acceptEscrow(escrowIdAlice, offerAlice.offerId);
         await assert.rejects(
-            buyerBob.acceptOffer(offerAlice.offerId, "qwe2"),
+            sellerAlice.acceptEscrow(escrowIdBob, offerAlice.offerId),
             (err: any) => {
-                assert.equal(err.message, 'Wrong offer stage: ACCEPTED_BY_BUYER')
+                assert.equal(err.message, 'Contract evaluation failed: Offer to be accepted by seller has to be in stage PENDING')
                 return true;
             }
-        );
+        )
+
     })
 
 });
