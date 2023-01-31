@@ -50,12 +50,6 @@ describe("TeleportEscrow", function () {
     return { escrow, owner, otherAccount, erc20, lockTime, receiver, hashedPassword, amount, token };
   }
 
-  async function deployAndFund() {
-    const result = await deploy();
-    await result.erc20.transfer(result.escrow.address, 10);
-
-    return result;
-  }
 
   describe("Deployment", function () {
     it("Should deploy contract", async function () {
@@ -66,7 +60,9 @@ describe("TeleportEscrow", function () {
 
   describe("Canceling", function () {
     it("Should cancel if stage FUNDED and date after ExpireAt", async () => {
-      const { escrow, lockTime, erc20, owner } = await loadFixture(deployAndFund);
+      const { escrow, erc20, otherAccount, lockTime, owner } = await loadFixture(deploy);
+      await erc20.transfer(escrow.address, 10);
+
 
       await time.increase(lockTime + 1)
 
@@ -128,7 +124,8 @@ describe("TeleportEscrow", function () {
     });
 
     it("Should fail to finalize if wrong password", async () => {
-      const { escrow } = await loadFixture(deployAndFund);
+      const { escrow, erc20, otherAccount } = await loadFixture(deploy);
+      await erc20.transfer(escrow.address, 10);
 
       await expect(escrow.finalize("0x1")).to.be.revertedWith(
         "Can not finalize wrong password"
@@ -136,7 +133,8 @@ describe("TeleportEscrow", function () {
     });
 
     it("Should finalize", async () => {
-      const { escrow, erc20, owner, otherAccount } = await loadFixture(deployAndFund);
+      const { escrow, erc20, otherAccount, owner } = await loadFixture(deploy);
+      await erc20.transfer(escrow.address, 10);
 
       await escrow.finalize("ala_ma_kota");
 
@@ -146,7 +144,8 @@ describe("TeleportEscrow", function () {
     });
 
     it("Should emit event on finalize", async () => {
-      const { escrow, erc20, otherAccount } = await loadFixture(deployAndFund);
+      const { escrow, erc20, otherAccount } = await loadFixture(deploy);
+      await erc20.transfer(escrow.address, 10);
 
       await expect(escrow.finalize("ala_ma_kota")).to.emit(escrow, "Finalized")
         .withArgs(

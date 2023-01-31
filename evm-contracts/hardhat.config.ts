@@ -8,7 +8,10 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: true,
   },
+  defaultNetwork: 'hardhat',
   networks: {
+    hardhat: {
+    },
     mumbai: {
       url: process.env['API'],
       accounts: [`0x${process.env['PRIVATE_KEY']}`]
