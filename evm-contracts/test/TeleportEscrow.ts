@@ -63,7 +63,6 @@ describe("TeleportEscrow", function () {
       const { escrow, erc20, otherAccount, lockTime, owner } = await loadFixture(deploy);
       await erc20.transfer(escrow.address, 10);
 
-
       await time.increase(lockTime + 1)
 
       await escrow.cancel()

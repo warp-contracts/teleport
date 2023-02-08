@@ -1,11 +1,7 @@
-//@ts-ignore
-import { buildEvmSignature } from 'warp-contracts-plugin-signature/server';
-import { ethers, Signer } from "ethers";
+import { ethers } from "ethers";
 import { WarpFactory } from "warp-contracts";
 import { EthersExtension } from "warp-contracts-plugin-ethers";
-import { deployNft } from "./Nft";
-
-const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature(ethersSigner), type: 'ethereum' as const })
+import { deployNft } from './nft';
 
 async function main() {
     // set-up
@@ -16,13 +12,14 @@ async function main() {
         .forMainnet()
         .use(new EthersExtension());
 
-    const ALICE_NFT = await deployNft(warp, makeWarpEvmSigner(BOB));
+    const result = await deployNft(warp, BOB);
+
     console.log(
         {
-            nftId: ALICE_NFT.nftId,
-            contractId: ALICE_NFT.contractTxId,
-            owner: BOB.address
-        })
+            contractId: result.contractTxId,
+            owner: BOB.address,
+        }
+    )
 }
 
 main()

@@ -2,10 +2,10 @@ import { Seller } from "../client/Seller";
 //@ts-ignore
 import { buildEvmSignature } from 'warp-contracts-plugin-signature/server';
 import { ethers, Signer } from "ethers";
-import { WarpFactory } from "warp-contracts";
+import { LoggerFactory, WarpFactory } from "warp-contracts";
 import { EthersExtension } from "warp-contracts-plugin-ethers";
 import { Buyer } from "../client/Buyer";
-import { deployNft } from "./Nft";
+import { deployNft } from "./nft";
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
@@ -21,8 +21,9 @@ const evmProvider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545"
 const ALICE = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
 const BOB = new ethers.Wallet("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
 const ESCROW_FACTORY_ADDRESS = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
-const OFFER_SRC_TX_ID = "j-9bfYEq0wFx81EcV6-ElLH_mnNlATl7z4auwMqzLR0";
+const OFFER_SRC_TX_ID = "kMKuS2FVhgSJ_8Vg-OvAL_IcXkrApMauGTDEMt7joJc";
 export const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+LoggerFactory.INST.logLevel('none');
 
 
 describe('e2e tests', () => {
@@ -35,8 +36,7 @@ describe('e2e tests', () => {
             .forMainnet({ inMemory: true, dbLocation: '' })
             .use(new EthersExtension());
 
-        const ALICE_NFT = await deployNft(warp, makeWarpEvmSigner(ALICE));
-        await ALICE_NFT.nftContract.viewState({ function: 'ownerOf', tokenId: ALICE_NFT.nftId })
+        const ALICE_NFT = await deployNft(warp, ALICE);
 
         const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
         const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider), OFFER_SRC_TX_ID, ESCROW_FACTORY_ADDRESS)
@@ -44,20 +44,18 @@ describe('e2e tests', () => {
         const price = '10';
         const { offerId } = await seller.createOffer(
             ALICE_NFT.contractTxId,
-            ALICE_NFT.nftId,
             price,
             TEST_PAYMENT_TOKEN
         );
 
         const { escrowId } = await buyer.acceptOffer(offerId, "password");
 
-        await seller.acceptEscrow(escrowId, offerId); // mozna zautomatyzowac
-
+        await seller.acceptEscrow(escrowId, offerId);
         await buyer.finalize(offerId, "password");
 
         await seller.finalize(escrowId, offerId);
 
-        const { result: ownerAfter } = await ALICE_NFT.nftContract.viewState({ function: 'ownerOf', tokenId: ALICE_NFT.nftId })
+        const { cachedValue: { state: { owner: ownerAfter } } } = await ALICE_NFT.nftContract.readState();
 
         assert.equal(ownerAfter, BOB.address);
         const aliceEndBalance = (await erc20.balanceOf(ALICE.address)).toNumber();
@@ -65,21 +63,19 @@ describe('e2e tests', () => {
     });
 
     it('Fail to create two offers for same NFT', async () => {
-        const ALICE = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
-
         const evmProvider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545");
 
         const warp = WarpFactory
             .forMainnet({ inMemory: true, dbLocation: '' })
             .use(new EthersExtension());
 
-        const NFT_A = await deployNft(warp, makeWarpEvmSigner(ALICE));
+        const NFT_A = await deployNft(warp, ALICE);
 
         const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
 
-        await seller.createOffer(NFT_A.contractTxId, NFT_A.nftId, '1', TEST_PAYMENT_TOKEN);
+        await seller.createOffer(NFT_A.contractTxId, '1', TEST_PAYMENT_TOKEN);
 
-        assert.rejects(seller.createOffer(NFT_A.contractTxId, NFT_A.nftId, '1', TEST_PAYMENT_TOKEN),
+        assert.rejects(seller.createOffer(NFT_A.contractTxId, '1', TEST_PAYMENT_TOKEN),
             (err: any) => {
                 assert.equal(err.message, "Cannot create interaction: Offer contract is not owner of NFT: 1")
                 return true;
@@ -92,8 +88,8 @@ describe('e2e tests', () => {
                 .forMainnet({ inMemory: true, dbLocation: '' })
                 .use(new EthersExtension());
 
-            const ALICE_NFT = await deployNft(warp, makeWarpEvmSigner(ALICE));
-            const BOB_NFT = await deployNft(warp, makeWarpEvmSigner(BOB));
+            const ALICE_NFT = await deployNft(warp, ALICE);
+            const BOB_NFT = await deployNft(warp, BOB);
 
             const sellerAlice = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
             const sellerBob = new Seller(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider), OFFER_SRC_TX_ID);
@@ -102,13 +98,11 @@ describe('e2e tests', () => {
             const price = '10';
             const offerAlice = await sellerAlice.createOffer(
                 ALICE_NFT.contractTxId,
-                ALICE_NFT.nftId,
                 price,
                 TEST_PAYMENT_TOKEN
             );
             const offerBob = await sellerBob.createOffer(
                 BOB_NFT.contractTxId,
-                BOB_NFT.nftId,
                 price,
                 TEST_PAYMENT_TOKEN
             );
@@ -134,7 +128,7 @@ describe('e2e tests', () => {
             .forMainnet({ inMemory: true, dbLocation: '' })
             .use(new EthersExtension());
 
-        const ALICE_NFT = await deployNft(warp, makeWarpEvmSigner(ALICE));
+        const ALICE_NFT = await deployNft(warp, ALICE);
 
         const sellerAlice = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
         const buyerAlice = new Buyer(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID, ESCROW_FACTORY_ADDRESS);
@@ -143,7 +137,6 @@ describe('e2e tests', () => {
         const price = '10';
         const offerAlice = await sellerAlice.createOffer(
             ALICE_NFT.contractTxId,
-            ALICE_NFT.nftId,
             price,
             TEST_PAYMENT_TOKEN
         );
@@ -163,5 +156,4 @@ describe('e2e tests', () => {
         )
 
     })
-
 });

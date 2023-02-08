@@ -67,7 +67,7 @@ export async function fetchAllOffersId(
 ): Promise<{ contracts: ContractBySource[], pages: any }> {
 
     const response = await fetch(
-        `https://gateway.redstone.finance/gateway/contracts-by-source?id=${offerSrcTxId}&limit=${limit}&sort=desc`
+        `https://gateway.warp.cc/gateway/contracts-by-source?id=${offerSrcTxId}&limit=${limit}&sort=desc`
     ).then(resp => resp.json());
 
     if (response.paging.total >= limit) {

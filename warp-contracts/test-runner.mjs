@@ -12,4 +12,3 @@ function runTest(file) {
 }
 
 runTest('warp-contracts/offer.warp.test.mjs')
-runTest('warp-contracts/nft.warp.test.mjs')

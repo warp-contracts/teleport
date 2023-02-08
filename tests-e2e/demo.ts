@@ -2,10 +2,10 @@ import { Seller } from "../client/Seller";
 //@ts-ignore
 import { buildEvmSignature } from 'warp-contracts-plugin-signature/server';
 import { ethers, Signer } from "ethers";
-import { WarpFactory } from "warp-contracts";
+import { LoggerFactory, WarpFactory } from "warp-contracts";
 import { EthersExtension } from "warp-contracts-plugin-ethers";
 import { Buyer } from "../client/Buyer";
-import { deployNft } from "./Nft";
+import { deployNft } from "./nft";
 
 const ERC20_ABI = [
     "function balanceOf(address owner) view returns (uint256)",
@@ -14,8 +14,9 @@ const ERC20_ABI = [
 ];
 const ESCROW_FACTORY_ADDRESS = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
 const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-const OFFER_SRC_TX_ID = "j-9bfYEq0wFx81EcV6-ElLH_mnNlATl7z4auwMqzLR0";
+const OFFER_SRC_TX_ID = "kMKuS2FVhgSJ_8Vg-OvAL_IcXkrApMauGTDEMt7joJc";
 const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature(ethersSigner), type: 'ethereum' as const })
+LoggerFactory.INST.logLevel('none');
 
 async function main() {
     // set-up
@@ -34,8 +35,8 @@ async function main() {
         .forMainnet()
         .use(new EthersExtension());
 
-    const ALICE_NFT = await deployNft(warp, makeWarpEvmSigner(ALICE));
-    const { result: ownerBefore } = await ALICE_NFT.nftContract.viewState({ function: 'ownerOf', tokenId: ALICE_NFT.nftId })
+    const ALICE_NFT = await deployNft(warp, ALICE);
+    const { cachedValue: { state: { owner: ownerBefore } } } = await ALICE_NFT.nftContract.readState();
     console.log("NFT owner: ", ownerBefore);
     // end of set-up
 
@@ -44,11 +45,10 @@ async function main() {
 
     const { offerId } = await seller.createOffer(
         ALICE_NFT.contractTxId,
-        ALICE_NFT.nftId,
         '10',
         TEST_PAYMENT_TOKEN
     );
-    console.log(`Seller: Created offer ${offerId} for NFT: ${ALICE_NFT.contractTxId}:${ALICE_NFT.nftId} for price 10 paid in token ${TEST_PAYMENT_TOKEN}`)
+    console.log(`Seller: Created offer ${offerId} for NFT: ${ALICE_NFT.contractTxId} for price 10 paid in token ${TEST_PAYMENT_TOKEN}`)
 
     const { escrowId } = await buyer.acceptOffer(offerId, "password");
     console.log(`Buyer: Accepted offer ${offerId} and secured it by escrow ${escrowId}`)
@@ -64,7 +64,7 @@ async function main() {
 
     console.log("ALICE BALANCE ", (await erc20.balanceOf(ALICE.address)).toNumber());
 
-    const { result: ownerAfter } = await ALICE_NFT.nftContract.viewState({ function: 'ownerOf', tokenId: ALICE_NFT.nftId })
+    const { cachedValue: { state: { owner: ownerAfter } } } = await ALICE_NFT.nftContract.readState();
     console.log("NFT owner: ", ownerAfter);
 }
 

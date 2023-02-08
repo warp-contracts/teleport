@@ -8,10 +8,8 @@ import { EthersExtension } from 'warp-contracts-plugin-ethers';
 import { ethers } from 'ethers';
 
 const CONTRACT_PATH_OFFER = join("warp-contracts", "offer.warp.js");
-const CONTRACT_PATH_NFT = join("warp-contracts", "nft.warp.js");
 const warp = WarpFactory.forLocal(1411).use(new EthersExtension());
 const CONTRACT_CODE_OFFER = readFileSync(CONTRACT_PATH_OFFER).toString();
-const CONTRACT_CODE_NFT = readFileSync(CONTRACT_PATH_NFT).toString();
 LoggerFactory.INST.logLevel('none');
 
 async function deployContract(initState) {
@@ -21,6 +19,9 @@ async function deployContract(initState) {
         wallet: signer,
         initState: initState ?? JSON.stringify({}),
         src: CONTRACT_CODE_OFFER,
+        evaluationManifest: {
+            internalWrites: true
+        }
     });
 
     const contract = warp.contract(contractTxId)
@@ -32,17 +33,26 @@ async function deployContract(initState) {
     return { contract, signer, signerAddress, warp };
 }
 
-async function deployNft(initState, signer) {
-    const { contractTxId } = await warp.deploy({
+async function deployNft({ owner, content }, signer) {
+    const symbol = "mike__" + Math.ceil(Math.random() * 1000);
+    const result = await warp.deploy({
+        src: readFileSync(join("warp-contracts", "nft.warp.js")).toString(),
+        initState: JSON.stringify({
+            name: "mike-test-nft",
+            owner: owner,
+            description: content,
+            symbol,
+            decimals: 0,
+            totalSupply: 1,
+            balances: { [owner]: 1 },
+            allowances: {},
+        }),
         wallet: signer,
-        initState: initState ?? JSON.stringify({}),
-        src: CONTRACT_CODE_NFT,
-    });
+        tags: [{ name: "Indexed-By", value: "atomic-asset" }]
+    })
 
-    const contract = warp.contract(contractTxId)
-        .setEvaluationOptions({
-            internalWrites: true,
-        })
+    const contract = warp.contract(result.contractTxId)
+        .setEvaluationOptions({ internalWrites: true })
         .connect(signer);
 
     return { contract, signer, warp };
@@ -68,17 +78,16 @@ describe('Offer', () => {
 
     const createOffer = async (expirePeriod) => {
         const { contract, signer, signerAddress } = await deployContract();
-        const { contract: nft } = await deployNft(JSON.stringify({ 'a': { content: 'a', owner: signerAddress } }), signer);
+        const { contract: nft } = await deployNft({ content: 'a', owner: signerAddress }, signer);
 
         await nft.writeInteraction({
-            function: 'transfer', tokenId: 'a', to: contract._contractTxId,
+            function: 'transfer', amount: 1, to: contract._contractTxId,
         });
 
         await contract.writeInteraction(
             {
                 function: 'create',
                 nftContractId: nft._contractTxId,
-                nftId: 'a',
                 price: '5',
                 priceTokenId: '12',
                 expirePeriod: expirePeriod ?? 3600,
@@ -104,17 +113,16 @@ describe('Offer', () => {
 
         it(`should create offer`, async () => {
             const { contract, signer, signerAddress } = await deployContract();
-            const { contract: nft } = await deployNft(JSON.stringify({ 'a': { content: 'a', owner: signerAddress } }), signer);
+            const { contract: nft } = await deployNft({ content: 'a', owner: signerAddress }, signer);
 
             await nft.writeInteraction({
-                function: 'transfer', tokenId: 'a', to: contract._contractTxId
+                function: 'transfer', amount: 1, to: contract._contractTxId
             });
 
             await contract.writeInteraction(
                 {
                     function: 'create',
                     nftContractId: nft._contractTxId,
-                    nftId: 'a',
                     price: '5',
                     priceTokenId: '12',
                     expirePeriod: 3600,
@@ -125,24 +133,18 @@ describe('Offer', () => {
 
         it(`should fail to create offer, if contract is not owner`, async () => {
             const { contract, signer, signerAddress } = await deployContract();
-            const { contract: nft } = await deployNft(JSON.stringify({ 'a': { content: 'a', owner: signerAddress } }), signer);
-
+            const { contract: nft } = await deployNft({ content: 'a', owner: signerAddress }, signer);
 
             await assert.rejects(contract.writeInteraction(
                 {
                     function: 'create',
                     nftContractId: nft._contractTxId,
-                    nftId: 'a',
                     price: '5',
                     priceTokenId: '12',
                     expirePeriod: 3600,
                 },
                 { strict: true }
-            ), err => {
-                assert.equal(err.message, "Cannot create interaction: Offer contract is not owner of NFT: a");
-                return true;
-            }
-            )
+            ))
         });
 
         describe('validation', () => {
@@ -157,7 +159,6 @@ describe('Offer', () => {
                     {
                         function: 'create',
                         nftContractId: '1',
-                        nftId: '2',
                         price: '5',
                         priceTokenId: '12',
                         expirePeriod: 3600,
@@ -174,7 +175,6 @@ describe('Offer', () => {
                     {
                         function: 'create',
                         nftContractId: '1'.repeat(43),
-                        nftId: '2',
                         price: '5.2',
                         priceTokenId: '12',
                         expirePeriod: 3600,
@@ -191,7 +191,6 @@ describe('Offer', () => {
                     {
                         function: 'create',
                         nftContractId: '1'.repeat(43),
-                        nftId: '2',
                         price: '5',
                         priceTokenId: '12',
                         expirePeriod: 300,
@@ -234,8 +233,8 @@ describe('Offer', () => {
                 { strict: true }
             );
 
-            const { result } = await nft.viewState({ function: 'ownerOf', tokenId: 'a' })
-            assert.equal(result, ALICE);
+            const { cachedValue: { state: { owner } } } = await nft.readState();
+            assert.equal(owner, ALICE);
         });
 
         it.todo('should cancel when stage == ACCEPTED_BY_BUYER')
@@ -245,63 +244,15 @@ describe('Offer', () => {
         it.todo('should  fail to cancel when before expireAt')
     });
 
-    describe('acceptBuyer', async () => {
-        it('should fail to accept is stage != PENDING', async () => {
-            const { contract } = await deployContract();
-
-            await assert.rejects(contract.writeInteraction(
-                {
-                    function: 'acceptBuyer',
-                    hashedPassword: "123"
-                },
-                { strict: true }
-            ), err => {
-                assert.equal(err.message, "Cannot create interaction: Offer to be accepted by buyer has to be in stage PENDING")
-                return true;
-            })
-        });
-
-        it('should accept buyer', async () => {
-            const { offer, signerAddress } = await createOffer();
-
-            await offer.writeInteraction(
-                {
-                    function: 'acceptBuyer',
-                    hashedPassword: "321"
-                },
-                { strict: true }
-            );
-
-            const { cachedValue } = await offer.readState();
-            assert.equal(
-                cachedValue.state.hashedPassword,
-                "321"
-            )
-            assert.equal(
-                cachedValue.state.buyer,
-                signerAddress
-            )
-            assert.equal(
-                cachedValue.state.stage,
-                "ACCEPTED_BY_BUYER"
-            )
-        });
-    });
-
     describe('acceptSeller', () => {
         it('should  accept by seller', async () => {
             const { offer } = await createOffer();
 
             await offer.writeInteraction(
                 {
-                    function: 'acceptBuyer',
-                    hashedPassword: "321"
-                },
-                { strict: true }
-            );
-            await offer.writeInteraction(
-                {
                     function: 'acceptSeller',
+                    hashedPassword: "123",
+                    buyerAddress: '521'
                 },
                 { strict: true }
             );
@@ -311,6 +262,7 @@ describe('Offer', () => {
                 cachedValue.state.stage,
                 "ACCEPTED_BY_SELLER"
             );
+            console.log(cachedValue.state.expireAt)
             assert.ok(
                 cachedValue.state.expireAt
             );
@@ -326,17 +278,12 @@ describe('Offer', () => {
             const password = "312"
             const hashedPassword = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [password]));
 
-            await offer.connect(BOB).writeInteraction(
-                {
-                    function: 'acceptBuyer',
-                    hashedPassword
-                },
-                { strict: true }
-            );
 
             await offer.connect(ALICE).writeInteraction(
                 {
                     function: 'acceptSeller',
+                    hashedPassword,
+                    buyerAddress: BOB_ADDRESS
                 },
                 { strict: true }
             );
@@ -350,8 +297,8 @@ describe('Offer', () => {
             );
 
 
-            const { result } = await nft.viewState({ function: 'ownerOf', tokenId: 'a' })
-            assert.equal(result, BOB_ADDRESS);
+            const { cachedValue: { state: { owner } } } = await nft.readState()
+            assert.equal(owner, BOB_ADDRESS);
         });
 
         it('should fail to finalize, if wrong password provided', async () => {
@@ -361,17 +308,11 @@ describe('Offer', () => {
             const password = "312"
             const hashedPassword = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [password]));
 
-            await offer.connect(BOB).writeInteraction(
-                {
-                    function: 'acceptBuyer',
-                    hashedPassword
-                },
-                { strict: true }
-            );
-
             await offer.connect(ALICE).writeInteraction(
                 {
                     function: 'acceptSeller',
+                    hashedPassword,
+                    buyerAddress: BOB_ADDRESS
                 },
                 { strict: true }
             );

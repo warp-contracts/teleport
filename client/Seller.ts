@@ -21,7 +21,7 @@ export class Seller {
     ) {
     }
 
-    async createOffer(nftContractId: string, nftId: string, price: string, priceTokenId: string, receiver?: string) {
+    async createOffer(nftContractId: string, price: string, priceTokenId: string, receiver?: string) {
         const deployment =
             await this.warp.deployFromSourceTx({
                 srcTxId: this.offerSrcTxId,
@@ -37,14 +37,13 @@ export class Seller {
         const nft = this.getWarpContract(nftContractId);
 
         await nft.call(
-            { function: 'transfer', tokenId: nftId, to: deployment.contractTxId },
+            { function: 'transfer', to: deployment.contractTxId, amount: 1 },
         );
 
         await offer.call(
             {
                 function: 'create',
                 nftContractId,
-                nftId,
                 price,
                 priceTokenId,
                 expirePeriod: 3600,

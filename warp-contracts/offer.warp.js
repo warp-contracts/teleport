@@ -18,7 +18,6 @@ export async function handle(state, action) {
             return ({
                 state: serializeOffer(await Offer.create(
                     input.nftContractId,
-                    input.nftId,
                     input.price,
                     input.priceTokenId,
                     input.expirePeriod,
@@ -55,7 +54,6 @@ export async function handle(state, action) {
 class Offer {
     stage = OFFER_STAGE.PENDING;
     nftContractId;
-    nftId;
     price;
     priceTokenId;
     owner;
@@ -67,7 +65,6 @@ class Offer {
 
     static async create(
         nftContractId,
-        nftId,
         price,
         priceTokenId,
         expirePeriod,
@@ -76,19 +73,18 @@ class Offer {
         const offer = new Offer();
         check(
             isNotEmptyString,
-            nftContractId, nftId, price, priceTokenId, signer,
+            nftContractId, price, priceTokenId, signer,
         )
         verifyExpireTime(expirePeriod);
         isTxIdValid(nftContractId);
         isPositiveInteger(price);
 
         offer.nftContractId = nftContractId;
-        offer.nftId = nftId;
         offer.price = price;
         offer.priceTokenId = priceTokenId;
         offer.owner = signer;
         offer.expirePeriod = expirePeriod;
-        this.expireAt = SmartWeave.block.timestamp + this.expirePeriod;
+        offer.expireAt = SmartWeave.block.timestamp + expirePeriod;
 
         await offer._isOfferOwnerOfNFT(signer);
 
@@ -103,7 +99,7 @@ class Offer {
         if (this.stage === OFFER_STAGE.PENDING) {
             this.stage = OFFER_STAGE.CANCELED;
             await SmartWeave.contracts.write(this.nftContractId,
-                { function: 'transfer', tokenId: this.nftId, to: this.owner }
+                { function: 'transfer', to: this.owner, amount: 1 }
             );
         } else if (this.stage === OFFER_STAGE.ACCEPTED_BY_SELLER) {
             if (SmartWeave.block.timestamp < this.expireAt) {
@@ -111,7 +107,7 @@ class Offer {
             }
             this.stage = OFFER_STAGE.CANCELED;
             await SmartWeave.contracts.write(this.nftContractId,
-                { function: 'transfer', tokenId: this.nftId, to: this.owner }
+                { function: 'transfer', to: this.owner, amount: 1 }
             );
 
         }
@@ -155,7 +151,7 @@ class Offer {
         }
 
         await SmartWeave.contracts.write(this.nftContractId,
-            { function: 'transfer', tokenId: this.nftId, to: this.buyer }
+            { function: 'transfer', to: this.buyer, amount: 1 }
         )
 
         this.stage = OFFER_STAGE.FINALIZED;
@@ -166,17 +162,17 @@ class Offer {
 
     async _isOfferOwnerOfNFT() {
         const response = await SmartWeave.contracts.viewContractState(this.nftContractId,
-            { function: 'ownerOf', tokenId: this.nftId }
+            { function: 'balanceOf', target: SmartWeave.contract.id },
         );
 
         if (response?.type === 'error') {
-            revert(`Failed to read contract state ${this.nftContractId}::ownerOf(${this.nftId}): ${response.errorMessage}`);
+            revert(`Failed to read contract state ${this.nftContractId}::balanceOf: ${response.errorMessage}`);
         } else if (response?.type === 'ok') {
-            if (response.result !== SmartWeave.contract.id) {
-                revert(`Offer contract is not owner of NFT: ${this.nftId}`)
+            if (response.state.owner !== SmartWeave.contract.id) {
+                revert(`Offer contract is not owner of NFT ${this.nftContractId}`)
             }
         } else {
-            revert(`Failed to read contract state ${this.nftContractId}::ownerOf(${this.nftId}): unknown error`);
+            revert(`Failed to read contract state ${this.nftContractId}::balanceOf: unknown error`);
         }
     }
 
@@ -184,7 +180,6 @@ class Offer {
 const OFFER_KEYS = [
     'stage',
     'nftContractId',
-    'nftId',
     'price',
     'priceTokenId',
     'owner',
