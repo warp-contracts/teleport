@@ -76,7 +76,7 @@ describe('Offer', () => {
         assert.ok(contract);
     });
 
-    const createOffer = async (expirePeriod) => {
+    const createOffer = async (expirePeriod, delegate) => {
         const { contract, signer, signerAddress } = await deployContract();
         const { contract: nft } = await deployNft({ content: 'a', owner: signerAddress }, signer);
 
@@ -91,6 +91,7 @@ describe('Offer', () => {
                 price: '5',
                 priceTokenId: '12',
                 expirePeriod: expirePeriod ?? 3600,
+                delegate
             },
             { strict: true }
         );
@@ -262,7 +263,29 @@ describe('Offer', () => {
                 cachedValue.state.stage,
                 "ACCEPTED_BY_SELLER"
             );
-            console.log(cachedValue.state.expireAt)
+            assert.ok(
+                cachedValue.state.expireAt
+            );
+        });
+
+        it('should  accept by delegate if set', async () => {
+            const { jwk: BOT, address: BOT_ADDRESS } = await warp.generateWallet();
+            const { offer } = await createOffer(3600, BOT_ADDRESS);
+
+            await offer.connect(BOT).writeInteraction(
+                {
+                    function: 'acceptSeller',
+                    hashedPassword: "123",
+                    buyerAddress: '521'
+                },
+                { strict: true }
+            );
+
+            const { cachedValue } = await offer.readState();
+            assert.equal(
+                cachedValue.state.stage,
+                "ACCEPTED_BY_SELLER"
+            );
             assert.ok(
                 cachedValue.state.expireAt
             );

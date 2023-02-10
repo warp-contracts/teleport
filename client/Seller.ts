@@ -21,7 +21,7 @@ export class Seller {
     ) {
     }
 
-    async createOffer(nftContractId: string, price: string, priceTokenId: string, receiver?: string) {
+    async createOffer(nftContractId: string, price: string, priceTokenId: string, receiver?: string, delegate?: string) {
         const deployment =
             await this.warp.deployFromSourceTx({
                 srcTxId: this.offerSrcTxId,
@@ -47,8 +47,10 @@ export class Seller {
                 price,
                 priceTokenId,
                 expirePeriod: 3600,
-                receiver
+                receiver,
+                delegate
             },
+            [{ name: "Indexed-By", value: `TELEPORT_OFFER${!delegate ? '' : `;DELEGATE-${delegate}`}` }]
         );
 
         return { offerId: deployment.contractTxId }

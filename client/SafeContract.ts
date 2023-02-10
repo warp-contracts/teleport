@@ -1,4 +1,4 @@
-import { Contract, Warp, CustomSignature } from "warp-contracts";
+import { Contract, Warp, CustomSignature, Tags } from "warp-contracts";
 
 export class SafeContract {
     public readonly contract: Contract;
@@ -17,9 +17,10 @@ export class SafeContract {
         );
     }
 
-    async call(input: Record<string, any>) {
+    async call(input: Record<string, any>, tags: Tags = []) {
         const response = await this.contract.writeInteraction(
-            input
+            input,
+            { tags }
         );
 
         if (!response) {

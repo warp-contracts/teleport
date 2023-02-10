@@ -14,7 +14,7 @@ const ERC20_ABI = [
 ];
 const ESCROW_FACTORY_ADDRESS = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
 const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-const OFFER_SRC_TX_ID = "kMKuS2FVhgSJ_8Vg-OvAL_IcXkrApMauGTDEMt7joJc";
+const OFFER_SRC_TX_ID = "bqLDy8-ZBgoEtnMQN68-rtjuYk00nAOlQPffczYKSIw";
 const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature(ethersSigner), type: 'ethereum' as const })
 LoggerFactory.INST.logLevel('none');
 
@@ -29,7 +29,6 @@ async function main() {
     console.log("BOB: ", BOB.address);
 
     console.log("ALICE BALANCE ", (await erc20.balanceOf(ALICE.address)).toNumber());
-
 
     const warp = WarpFactory
         .forMainnet()

@@ -21,7 +21,8 @@ export async function handle(state, action) {
                     input.price,
                     input.priceTokenId,
                     input.expirePeriod,
-                    input.receiver ?? action.caller
+                    input.receiver ?? action.caller,
+                    input.delegate
                 ))
             })
         case 'cancel': {
@@ -59,6 +60,7 @@ class Offer {
     owner;
     expirePeriod;
     expireAt;
+    delegate;
 
     buyer;
     hashedPassword;
@@ -68,7 +70,8 @@ class Offer {
         price,
         priceTokenId,
         expirePeriod,
-        signer
+        signer,
+        delegate
     ) {
         const offer = new Offer();
         check(
@@ -85,6 +88,7 @@ class Offer {
         offer.owner = signer;
         offer.expirePeriod = expirePeriod;
         offer.expireAt = SmartWeave.block.timestamp + expirePeriod;
+        offer.delegate = delegate;
 
         await offer._isOfferOwnerOfNFT(signer);
 
@@ -124,8 +128,8 @@ class Offer {
         isNotEmptyString(hashedPassword);
         isNotEmptyString(buyerAddress);
 
-        if (signer !== this.owner) {
-            revert(`Owner required`)
+        if (signer !== this.owner && (this.delegate && signer !== this.delegate)) {
+            revert(`Owner or delegate required, signer: ${signer} delegate: ${this.delegate}`)
         }
 
         if (this.stage !== OFFER_STAGE.PENDING) {
@@ -181,6 +185,7 @@ const OFFER_KEYS = [
     'stage',
     'nftContractId',
     'price',
+    'delegate',
     'priceTokenId',
     'owner',
     'expireAt',
