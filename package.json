@@ -36,11 +36,14 @@
     "hardhat": "^2.12.6",
     "koa": "^2.14.1",
     "lmdb": "^2.7.9",
+    "node-fetch": "^3.3.0",
     "redstone-wasm-metering": "^1.0.5",
     "typescript": "^4.9.4",
     "warp-contracts": "^1.2.49",
     "warp-contracts-plugin-ethers": "^1.0.7",
-    "warp-contracts-plugin-signature": "^1.0.9"
+    "warp-contracts-plugin-signature": "^1.0.9",
+    "warp-contracts-pubsub": "^1.0.5",
+    "ws": "^8.12.0"
   },
   "devDependencies": {
     "hardhat-gas-reporter": "^1.0.9",

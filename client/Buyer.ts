@@ -34,16 +34,18 @@ export class Buyer {
         return { escrowId: escrow.address }
     }
 
-    async finalize(offerId: string, password: string) {
+    async finalize(offerId: string, password: string, receiver?: string) {
         const offerContract = new SafeContract(this.warp, this.warpSigner, offerId);
 
         const offerState = await offerContract.read();
+
+        const effectiveReceiver = receiver ? receiver : await this.evmSigner.getAddress();
 
         if (offerState.stage !== 'ACCEPTED_BY_SELLER') {
             throw Error(`Wrong offer stage: ${offerState.stage}`)
         }
 
-        if (offerState.buyer !== await this.evmSigner.getAddress()) {
+        if (offerState.buyer !== effectiveReceiver) {
             throw Error(`You are not pointed as receiver of offer`)
         }
 

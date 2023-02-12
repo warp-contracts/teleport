@@ -106,17 +106,21 @@ export class Seller {
         );
     }
 
-    async finalize(escrowId: string, offerId: string) {
+    async finalize(escrowId: string, offerId: string, password?: string) {
         const escrow = new ethers.Contract(escrowId, TeleportEscrow.abi, this.evm);
         const offer = this.getWarpContract(offerId);
 
-        const state = await offer.read();
+        let effectivePassword = password;
+        if (!password) {
+            const state = await offer.read();
 
-        if (!state.password) {
-            throw Error(`Password not relieved`)
+            if (!state.password) {
+                throw Error(`Password not relieved`)
+            }
+            effectivePassword = state.password;
         }
 
-        await escrow.connect(this.evmSigner).finalize(state.password).then((tx: any) => tx.wait());
+        await escrow.connect(this.evmSigner).finalize(effectivePassword).then((tx: any) => tx.wait());
     }
 
 

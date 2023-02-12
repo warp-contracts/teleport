@@ -31,7 +31,7 @@ async function main() {
     console.log("ALICE BALANCE ", (await erc20.balanceOf(ALICE.address)).toNumber());
 
     const warp = WarpFactory
-        .forMainnet()
+        .forMainnet({ inMemory: true, dbLocation: "" })
         .use(new EthersExtension());
 
     const ALICE_NFT = await deployNft(warp, ALICE);

@@ -23,10 +23,15 @@ export async function deployNft(warp: Warp, wallet: Wallet, initState = {}) {
         }),
         srcTxId: NFT_SRC_TX_ID,
         wallet: signer,
-        tags: [{ name: "Indexed-By", value: "atomic-asset" }]
+        tags: [{ name: "Indexed-By", value: "atomic-asset" }],
+        evaluationManifest: {
+            evaluationOptions: {
+                internalWrites: true
+            }
+        }
     })
 
-    const nftContract = warp.contract<any>(result.contractTxId).connect(signer);
+    const nftContract = warp.contract<any>(result.contractTxId).setEvaluationOptions({ internalWrites: true }).connect(signer);
 
     return { nftContract, contractTxId: result.contractTxId };
 }
