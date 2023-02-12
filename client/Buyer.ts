@@ -21,7 +21,7 @@ export class Buyer {
     ) {
     }
 
-    async acceptOffer(offerId: string, password: string) {
+    async acceptOffer(offerId: string, password: string, matcher?: { url: string, }) {
         const offerContract = new SafeContract(this.warp, this.warpSigner, offerId);
 
         let offerState = await offerContract.read();
@@ -30,6 +30,17 @@ export class Buyer {
         const { erc20, escrow } = await this.deployEscrow({ ...offerState, offerId }, password);
 
         await this.fundEscrow(erc20, escrow, offerState.price);
+
+        if (matcher) {
+            const { status } = await fetch(matcher.url, {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: "password", offerId, from: await this.evmSigner.getAddress() })
+            });
+            if (status != 200) {
+                throw Error("Failed to trigger matcher");
+            }
+        }
 
         return { escrowId: escrow.address }
     }

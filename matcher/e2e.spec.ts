@@ -6,10 +6,8 @@ import { LoggerFactory, WarpFactory } from "warp-contracts";
 import { EthersExtension } from "warp-contracts-plugin-ethers";
 import { Buyer } from "../client/Buyer";
 import { deployNft } from "../tests-e2e/nft";
-import { describe, it } from 'node:test';
-import { Readable } from 'node:stream';
+import { describe, it, } from 'node:test';
 import assert from 'node:assert';
-
 
 const ERC20_ABI = [
     "function balanceOf(address owner) view returns (uint256)",
@@ -25,93 +23,91 @@ const MATCHER_ADDRESS = "0x90F79bf6EB2c4f870365E785982E1f101E93b906";
 const ESCROW_FACTORY_ADDRESS = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
 const OFFER_SRC_TX_ID = "bqLDy8-ZBgoEtnMQN68-rtjuYk00nAOlQPffczYKSIw";
 export const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+
+
 LoggerFactory.INST.logLevel('none');
+
 
 
 describe('e2e tests', () => {
 
-    // it('With matcher for seller', async () => {
-    //     const erc20 = new ethers.Contract(TEST_PAYMENT_TOKEN, ERC20_ABI, evmProvider);
-    //     const aliceStartBalance = (await erc20.balanceOf(ALICE.address)).toNumber();
 
-    //     const warp = WarpFactory
-    //         .forMainnet({ inMemory: true, dbLocation: '' })
-    //         .use(new EthersExtension());
+    it('With matcher for seller', async () => {
+        const erc20 = new ethers.Contract(TEST_PAYMENT_TOKEN, ERC20_ABI, evmProvider);
+        const aliceStartBalance = (await erc20.balanceOf(ALICE.address)).toNumber();
 
-    //     const ALICE_NFT = await deployNft(warp, ALICE);
+        const warp = WarpFactory
+            .forMainnet({ inMemory: true, dbLocation: '' })
+            .use(new EthersExtension());
 
-    //     const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
-    //     const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider), OFFER_SRC_TX_ID, ESCROW_FACTORY_ADDRESS)
+        const ALICE_NFT = await deployNft(warp, ALICE);
 
-    //     const price = '10';
-    //     const { offerId } = await seller.createOffer(
-    //         ALICE_NFT.contractTxId,
-    //         price,
-    //         TEST_PAYMENT_TOKEN,
-    //         undefined,
-    //         MATCHER_ADDRESS // with delegate
-    //     );
+        const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
+        const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider), OFFER_SRC_TX_ID, ESCROW_FACTORY_ADDRESS)
 
-    //     const { escrowId } = await buyer.acceptOffer(offerId, "password");
-    //     // send request to matcher {offerId, password}
+        const price = '10';
+        const { offerId } = await seller.createOffer(
+            ALICE_NFT.contractTxId,
+            price,
+            TEST_PAYMENT_TOKEN,
+            undefined,
+            MATCHER_ADDRESS // with delegate
+        );
 
-    //     // await seller.acceptEscrow(escrowId, offerId);
-    //     // Wait five seconds for matcher
-    //     await new Promise((resolve, reject) => setTimeout(resolve, 5_000));
+        const { escrowId } = await buyer.acceptOffer(offerId, "password");
+        // send request to matcher {offerId, password}
 
-    //     await buyer.finalize(offerId, "password");
+        // await seller.acceptEscrow(escrowId, offerId);
+        // Wait five seconds for matcher
+        await new Promise((resolve, reject) => setTimeout(resolve, 5_000));
 
-    //     // await seller.finalize(escrowId, offerId);
-    //     await new Promise((resolve, reject) => setTimeout(resolve, 5_000));
+        await buyer.finalize(offerId, "password");
 
-    //     const { cachedValue: { state: { owner: ownerAfter } } } = await ALICE_NFT.nftContract.readState();
+        // await seller.finalize(escrowId, offerId);
+        await new Promise((resolve, reject) => setTimeout(resolve, 5_000));
 
-    //     assert.equal(ownerAfter, BOB.address);
-    //     const aliceEndBalance = (await erc20.balanceOf(ALICE.address)).toNumber();
-    //     assert.equal(aliceEndBalance - aliceStartBalance, Number(price));
-    // });
+        const { cachedValue: { state: { owner: ownerAfter } } } = await ALICE_NFT.nftContract.readState();
 
-    // it('With matcher for buyer', async () => {
-    //     const erc20 = new ethers.Contract(TEST_PAYMENT_TOKEN, ERC20_ABI, evmProvider);
-    //     const aliceStartBalance = (await erc20.balanceOf(ALICE.address)).toNumber();
+        assert.equal(ownerAfter, BOB.address);
+        const aliceEndBalance = (await erc20.balanceOf(ALICE.address)).toNumber();
+        assert.equal(aliceEndBalance - aliceStartBalance, Number(price));
+    });
 
-    //     const warp = WarpFactory
-    //         .forMainnet({ inMemory: true, dbLocation: '' })
-    //         .use(new EthersExtension());
+    it('With matcher for buyer', async () => {
+        const erc20 = new ethers.Contract(TEST_PAYMENT_TOKEN, ERC20_ABI, evmProvider);
+        const aliceStartBalance = (await erc20.balanceOf(ALICE.address)).toNumber();
 
-    //     const ALICE_NFT = await deployNft(warp, ALICE);
+        const warp = WarpFactory
+            .forMainnet({ inMemory: true, dbLocation: '' })
+            .use(new EthersExtension());
 
-    //     const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
-    //     const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider), OFFER_SRC_TX_ID, ESCROW_FACTORY_ADDRESS)
+        const ALICE_NFT = await deployNft(warp, ALICE);
 
-    //     const price = '10';
-    //     const { offerId } = await seller.createOffer(
-    //         ALICE_NFT.contractTxId,
-    //         price,
-    //         TEST_PAYMENT_TOKEN,
-    //     );
+        const seller = new Seller(makeWarpEvmSigner(ALICE), warp, evmProvider, ALICE.connect(evmProvider), OFFER_SRC_TX_ID);
+        const buyer = new Buyer(makeWarpEvmSigner(BOB), warp, evmProvider, BOB.connect(evmProvider), OFFER_SRC_TX_ID, ESCROW_FACTORY_ADDRESS)
 
-    //     const { escrowId } = await buyer.acceptOffer(offerId, "password");
-    //     // send request to matcher {offerId, password}
+        const price = '10';
+        const { offerId } = await seller.createOffer(
+            ALICE_NFT.contractTxId,
+            price,
+            TEST_PAYMENT_TOKEN,
+        );
 
-    //     await fetch("http://127.0.0.1:8989", {
-    //         method: "POST",
-    //         headers: { 'Content-Type': 'application/json' },
-    //         body: JSON.stringify({ password: "password", offerId, escrowId, from: BOB.address })
-    //     }).then(r => console.log(r.status))
+        const { escrowId } = await buyer.acceptOffer(offerId, "password", { url: "http://127.0.0.1:8989" });
+        // send request to matcher {offerId, password}
 
-    //     await seller.acceptEscrow(escrowId, offerId);
-    //     // Wait five seconds for matcher
-    //     await new Promise((resolve, reject) => setTimeout(resolve, 5_000));
+        await seller.acceptEscrow(escrowId, offerId);
+        // Wait five seconds for matcher
+        await new Promise((resolve, reject) => setTimeout(resolve, 5_000));
 
-    //     await seller.finalize(escrowId, offerId);
+        await seller.finalize(escrowId, offerId);
 
-    //     const { cachedValue: { state: { owner: ownerAfter } } } = await ALICE_NFT.nftContract.readState();
+        const { cachedValue: { state: { owner: ownerAfter } } } = await ALICE_NFT.nftContract.readState();
 
-    //     assert.equal(ownerAfter, BOB.address);
-    //     const aliceEndBalance = (await erc20.balanceOf(ALICE.address)).toNumber();
-    //     assert.equal(aliceEndBalance - aliceStartBalance, Number(price));
-    // });
+        assert.equal(ownerAfter, BOB.address);
+        const aliceEndBalance = (await erc20.balanceOf(ALICE.address)).toNumber();
+        assert.equal(aliceEndBalance - aliceStartBalance, Number(price));
+    });
 
     it('With matcher for buyer and seller', async () => {
         const erc20 = new ethers.Contract(TEST_PAYMENT_TOKEN, ERC20_ABI, evmProvider);
@@ -135,13 +131,7 @@ describe('e2e tests', () => {
             MATCHER_ADDRESS // with delegate
         );
 
-        await fetch("http://127.0.0.1:8989", {
-            method: "POST",
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: "password", offerId, from: BOB.address })
-        }).then(r => console.log(r.status))
-
-        await buyer.acceptOffer(offerId, "password");
+        const { escrowId } = await buyer.acceptOffer(offerId, "password", { url: "http://127.0.0.1:8989" });
 
         // Wait five seconds for matcher
         await new Promise((resolve, reject) => setTimeout(resolve, 20_000));

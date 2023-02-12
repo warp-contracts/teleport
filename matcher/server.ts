@@ -13,6 +13,7 @@ export function buildServer(emitter: EventEmitter) {
         }
         const { password, offerId, from } = (ctx.request.body as any);
 
+        //TODO: pass with signature and then verify it
         if (!password || !offerId || !from) {
             ctx.body = 'Wrong params, provide: password and offerId and escrowId'
             ctx.status = 400;
