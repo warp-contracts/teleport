@@ -21,7 +21,7 @@ export class Seller {
     ) {
     }
 
-    async createOffer(nftContractId: string, price: string, priceTokenId: string, receiver?: string, delegate?: string) {
+    async createOffer(nftContractId: string, price: string, priceTokenId: string, receiver?: string, matcher?: { delegate: string, url: string }) {
         const deployment =
             await this.warp.deployFromSourceTx({
                 srcTxId: this.offerSrcTxId,
@@ -48,10 +48,21 @@ export class Seller {
                 priceTokenId,
                 expirePeriod: 3600,
                 receiver,
-                delegate
+                delegate: matcher?.delegate
             },
-            [{ name: "Indexed-By", value: `TELEPORT_OFFER${!delegate ? '' : `;DELEGATE-${delegate}`}` }]
+            [{ name: "Indexed-By", value: `TELEPORT_OFFER` }]
         );
+
+        if (matcher) {
+            const { status } = await fetch(matcher.url, {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ offerId: deployment.contractTxId, op: "trackSeller" })
+            });
+            if (status != 200) {
+                throw Error("Failed to trigger matcher");
+            }
+        }
 
         return { offerId: deployment.contractTxId }
     }

@@ -1,4 +1,4 @@
-import { Contract, ethers, providers, Signer, Wallet } from "ethers";
+import { Contract, ethers, logger, providers, Signer, Wallet } from "ethers";
 import TeleportEscrowFactory from "../client/TeleportEscrowFactory";
 import { EventEmitter } from 'node:events';
 import { Buyer, Seller } from "../client";
@@ -9,17 +9,14 @@ import * as log from './logger';
 import db from './db';
 import { EthersExtension } from "warp-contracts-plugin-ethers";
 import { subscribeState } from "./warp-pubsub";
+import ERC20 from "../client/ERC20";
 
 const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature(ethersSigner), type: 'ethereum' as const })
-
-const AGGREGATE_NODE_URL = 'https://contracts.warp.cc';
 
 // turn off warp logger
 LoggerFactory.INST.logLevel('none');
 
 const BLOCK_LIMIT = 500;
-const SEARCH_BLOCKS_IN_PAST = BLOCK_LIMIT * 50;
-const AGGREGATE_NODE_POOLING = 1000;
 
 type NewPasswordEvent = {
     offerId: string,
@@ -71,27 +68,31 @@ export async function runListeners(
     const seller = new Seller(makeWarpEvmSigner(wallet), warp, evmProvider, wallet.connect(evmProvider), offerSrcTxId);
     const buyer = new Buyer(makeWarpEvmSigner(wallet), warp, evmProvider, wallet.connect(evmProvider), offerSrcTxId, escrowFactoryAddress);
 
-    listenForOfferCreation(emitter, wallet.address);
-
     const alreadySavedPasswords = getAllPasswords();
     alreadySavedPasswords.forEach(({ key, value }) => {
         emitter.emit('newPassword', value);
     });
 
-    emitter.on('newCreateOfferInteraction', async (interaction: InteractionEvent) => {
-        log.info(`NewCreateOfferInteractionEvent ${JSON.stringify(interaction)}`);
-        listenForNewEscrowByOfferId(evmProvider, emitter, interaction.contract_tx_id, escrowFactoryAddress)
+    emitter.on('trackSeller', (event) => {
+        log.info(`trackSeller ${JSON.stringify(event)}`)
+        db.putSync("OFFER_NEW_" + solidityKeccak(event.offerId), event.offerId)
+    })
+
+    listenForNewEscrows(evmProvider, emitter, escrowFactoryAddress)
+    evmProvider.on("block", (event) => {
+        listenForNewEscrows(evmProvider, emitter, escrowFactoryAddress)
     });
 
     emitter.on('newEscrow', async (event: NewEscrowEvent) => {
         log.info(`NewEscrowEvent ${JSON.stringify(event)}`);
 
         if (isOfferAccepted(event.offerId)) {
-            log.info(`Escrow ${event.escrowId} was already handled, skipping`);
             return;
         }
 
         markOfferAsAccepted(event.offerId);
+        await new Promise((resolve, reject) => setTimeout(resolve, 10_000)); // should wait normally on funding
+
         await seller.acceptEscrow(event.escrowId, event.offerId)
             .then(() => log.info(`Accepted escrow ${event.escrowId} for offer ${event.offerId}`))
             .catch(e => log.error(`Failed to accept escrow ${event.escrowId} for offer ${event.offerId} : ${e.toString()}`))
@@ -110,8 +111,8 @@ export async function runListeners(
         )
     });
 
-    emitter.on('newPassword', async (event: NewPasswordEvent) => {
-        log.info(`NewPasswordEvent ${JSON.stringify(event)}`)
+    emitter.on('trackBuyer', async (event: NewPasswordEvent) => {
+        log.info(`trackBuyer ${JSON.stringify(event)}`)
 
         savePassword(event.offerId, { ...event })
 
@@ -124,6 +125,7 @@ export async function runListeners(
             async (state) => {
                 if (state.stage === "ACCEPTED_BY_SELLER" && !isOfferFinalized(event.offerId)) {
                     markOfferAsFinalized(event.offerId)
+                    console.log({ password: event.password })
                     await buyer.finalize(event.offerId, event.password, event.from)
                         .then(() => log.info(`Buyer finalized offer ${event.offerId}`))
                         .catch((e) => log.error(`Buyer failed to finalize offer ${event.offerId}: ${e.toString()}`));
@@ -137,86 +139,37 @@ function solidityKeccak(value: string) {
     return ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(["string"], [value]));
 }
 
-export async function listenForNewEscrowByOfferId(
+async function listenForNewEscrows(
     evmProvider: ethers.providers.JsonRpcProvider,
     emitter: EventEmitter,
-    forOfferId: string,
     escrowFactoryAddress: string,
 ): Promise<void> {
-    log.info(`Listening for escrows created for offer: ${forOfferId}`);
+    log.info(`Listening for new escrows created by factor: ${escrowFactoryAddress}`);
 
     const contract = new Contract(escrowFactoryAddress, TeleportEscrowFactory.abi, evmProvider);
-    const forOfferIdHash = solidityKeccak(forOfferId);
-    const filter = contract.filters.NewTeleportEscrow(null, forOfferIdHash)
 
     const lastBlock = await evmProvider.getBlockNumber();
-    const startBlock = Math.max(lastBlock - SEARCH_BLOCKS_IN_PAST, 0);
+    const startBlock = db.get("LAST_ESCROW_BLOCK") ?? Math.max(lastBlock - 500, 0);
 
     console.assert(lastBlock >= startBlock, "lastBlock should be greater or equal to startBlock")
+    log.info(`Searching for escrows from ${startBlock} to ${lastBlock}`);
 
-    log.info(`Searching for preexisting escrows from ${startBlock} to ${lastBlock}`);
-
-    // on already existing
     for (let i = startBlock; i < lastBlock; i += BLOCK_LIMIT) {
         const fromBlock = i;
         const toBlock = i + BLOCK_LIMIT;
 
-        const events = await contract.queryFilter(filter, fromBlock, toBlock);
+        const events = await contract.queryFilter("NewTeleportEscrow", fromBlock, toBlock);
 
+        // if we are tracking this offer
         events.map(
-            e => emitter.emit('newEscrow', { escrowId: e?.args?.instance, offerId: forOfferId })
+            e => {
+                const offerIdHash = e?.args?.offerIdHash;
+                const offerId = db.get("OFFER_NEW_" + offerIdHash);
+                if (offerId) {
+                    emitter.emit('newEscrow', { escrowId: e?.args?.instance, offerId })
+                }
+            }
         )
-    }
-
-    // on incoming
-    contract.on(filter, (event) => {
-        emitter.emit('newEscrow', { escrowId: event?.args?.instance, offerId: forOfferId })
-    })
-}
-
-
-async function listenForOfferCreation(emitter: EventEmitter, address: string) {
-    const limit = 1000;
-    const startPage = 1;
-
-    // TODO: this can be optimized we don't have to fetch all interactions every time
-    let i = startPage;
-    let lastResponse = await fetchDelegatedCreateOfferInteractions(limit, startPage, address);
-    while (true) {
-        lastResponse.interactions.map(interaction => {
-            if (isOfferAccepted(interaction.contract_tx_id)) {
-                log.info(`Skipping create offer interaction ${interaction.contract_tx_id} - already handled`)
-            } else {
-                emitter.emit('newCreateOfferInteraction', interaction)
-            }
-        })
-
-        if (lastResponse.paging.items < limit) {
-            // when not full page
-            const itemsCount = lastResponse.paging.items;
-            // waiting for new events
-            while (lastResponse.paging.items <= itemsCount) {
-                lastResponse = await fetchDelegatedCreateOfferInteractions(limit, i, address);
-
-                await new Promise((resolve, reject) => setTimeout(resolve, AGGREGATE_NODE_POOLING))
-            }
-            // sorting is done by block_height, so if new interaction has same block height as already saw, it doesnt have to be first in list, so we have to take whole block
-        } else {
-            // when full page, go to next page
-            i++;
-        }
+        db.putSync("LAST_ESCROW_BLOCK", Math.max(lastBlock, i));
     }
 }
-
-
-async function fetchDelegatedCreateOfferInteractions(limit: number, page: number, address: string): Promise<{ paging: { limit: number, items: number, page: number }, interactions: InteractionEvent[] }> {
-    while (true) {
-        try {
-            return await fetch(`${AGGREGATE_NODE_URL}/interactions-by-indexes?limit=${limit}&page=${page}&indexes=TELEPORT_OFFER;DELEGATE-${address}`).then(resp => resp.json());
-        } catch (e) {
-            continue;
-        }
-        await new Promise((resolve, reject) => setTimeout(resolve, AGGREGATE_NODE_POOLING));
-        break;
-    }
-} 

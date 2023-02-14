@@ -22,7 +22,7 @@ export async function fetchEscrowsByOfferId(
     const filter = contract.filters.NewTeleportEscrow(null, forOfferIdHash)
 
     const lastBlock = await evmProvider.getBlockNumber();
-    const firstBlock = lastBlock - (BLOCK_LIMIT * 6); // 1000 blocks * 2 seconds * 6 => 12_000 second ~ 3 hours
+    const firstBlock = lastBlock - (BLOCK_LIMIT * 2); // 1000 blocks * 2 seconds * 2 => 4_000 second ~ 1 hours
 
     const allEvents: ethers.Event[] = [];
     for (let i = firstBlock; i <= lastBlock; i += BLOCK_LIMIT) {

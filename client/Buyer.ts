@@ -24,7 +24,7 @@ export class Buyer {
     async acceptOffer(offerId: string, password: string, matcher?: { url: string, }) {
         const offerContract = new SafeContract(this.warp, this.warpSigner, offerId);
 
-        let offerState = await offerContract.read();
+        const offerState = await offerContract.read();
         await this.verifyOffer(offerState, offerId);
 
         const { erc20, escrow } = await this.deployEscrow({ ...offerState, offerId }, password);
@@ -35,7 +35,7 @@ export class Buyer {
             const { status } = await fetch(matcher.url, {
                 method: "POST",
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: "password", offerId, from: await this.evmSigner.getAddress() })
+                body: JSON.stringify({ password: password, offerId, from: await this.evmSigner.getAddress(), op: "trackBuyer" })
             });
             if (status != 200) {
                 throw Error("Failed to trigger matcher");
@@ -87,7 +87,7 @@ export class Buyer {
     }
 
     private async fundEscrow(erc20: ethers.Contract, escrow: ethers.Contract, price: string) {
-        await erc20.connect(this.evmSigner).transfer(escrow.address, price, { gasLimit: 21000000 }).then((tx: any) => tx.wait());
+        await erc20.connect(this.evmSigner).transfer(escrow.address, price).then((tx: any) => tx.wait());
     }
 
     async deployEscrow({ owner, price, priceTokenId, offerId }: any, password: string) {
@@ -117,7 +117,7 @@ export class Buyer {
             const escrow = new ethers.Contract(escrowAddress, EscrowEvm.abi, this.evm).connect(this.evmSigner);
             return { erc20, escrow }
         } else {
-            throw Error("Failed to get deployed escrow address")
+            throw Error("Failed to get deployed escrow address");
         }
     }
 }

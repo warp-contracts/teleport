@@ -120,7 +120,7 @@
         const balances = state.balances;
         const fromBalance = getOr(balances[from], 0);
         if (fromBalance < amount) {
-            throw new ContractError(`Caller balance not enough ${fromBalance}`);
+            throw new ContractError(`Caller ${from} balance not enough ${fromBalance} `);
         }
         const newFromBalance = fromBalance - amount;
         if (newFromBalance === 0) {

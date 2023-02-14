@@ -3,7 +3,7 @@ import { buildEvmSignature } from 'warp-contracts-plugin-signature/server';
 import { Signer, Wallet } from "ethers";
 import { Warp } from "warp-contracts";
 
-const NFT_SRC_TX_ID = "b2rn_9uwZ_dncfE3_jvo3D_Yt1UudwZb8BFMy23pxq0";
+const NFT_SRC_TX_ID = "ZXKdoE-WnH7NQATZKfER0rrrCNwOGfdSD42lWzHJ03g";
 
 const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature(ethersSigner), type: 'ethereum' as const })
 

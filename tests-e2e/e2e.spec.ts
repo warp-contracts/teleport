@@ -48,6 +48,8 @@ describe('e2e tests', () => {
             TEST_PAYMENT_TOKEN
         );
 
+        console.log({ offerId })
+
         const { escrowId } = await buyer.acceptOffer(offerId, "password");
 
         await seller.acceptEscrow(escrowId, offerId);
