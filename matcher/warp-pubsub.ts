@@ -7,6 +7,7 @@ global.WebSocket = WebSocket as any;
 initPubSub();
 
 
+
 export async function subscribeState(
     contractId: string,
     onMessage: (state: Record<string, any>) => Promise<void> | void,

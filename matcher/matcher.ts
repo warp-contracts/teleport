@@ -1,7 +1,7 @@
 import { Contract, ethers, logger, providers, Signer, Wallet } from "ethers";
 import TeleportEscrowFactory from "../client/TeleportEscrowFactory";
 import { EventEmitter } from 'node:events';
-import { Buyer, Seller } from "../client";
+import { Buyer, Seller, TeleportEscrow } from "../client";
 //@ts-ignore
 import { buildEvmSignature } from 'warp-contracts-plugin-signature/server';
 import { LoggerFactory, WarpFactory } from "warp-contracts";
@@ -91,7 +91,28 @@ export async function runListeners(
         }
 
         markOfferAsAccepted(event.offerId);
-        await new Promise((resolve, reject) => setTimeout(resolve, 10_000)); // should wait normally on funding
+
+        const escrow = new Contract(event.escrowId, TeleportEscrow.abi, evmProvider);
+        const erc20Address = await escrow.token();
+        const amount = (await escrow.amount()).toNumber();
+        const erc20 = new Contract(erc20Address, ERC20.abi, evmProvider);
+
+        // wait for funded
+        let i = 0;
+        while (true) {
+            i++;
+            const currentBalance = (await erc20.balanceOf(event.escrowId)).toNumber();
+
+            if (currentBalance === amount) {
+                break;
+            }
+
+            if (i === 360) {
+                throw Error("Escrow was not founded for 10 minutes, aborting")
+            }
+
+            await new Promise((resolve, reject) => setTimeout(resolve, 1_000)); // should wait normally on funding
+        }
 
         await seller.acceptEscrow(event.escrowId, event.offerId)
             .then(() => log.info(`Accepted escrow ${event.escrowId} for offer ${event.offerId}`))
@@ -125,7 +146,6 @@ export async function runListeners(
             async (state) => {
                 if (state.stage === "ACCEPTED_BY_SELLER" && !isOfferFinalized(event.offerId)) {
                     markOfferAsFinalized(event.offerId)
-                    console.log({ password: event.password })
                     await buyer.finalize(event.offerId, event.password, event.from)
                         .then(() => log.info(`Buyer finalized offer ${event.offerId}`))
                         .catch((e) => log.error(`Buyer failed to finalize offer ${event.offerId}: ${e.toString()}`));

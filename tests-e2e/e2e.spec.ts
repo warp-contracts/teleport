@@ -20,8 +20,8 @@ const makeWarpEvmSigner = (ethersSigner: Signer) => ({ signer: buildEvmSignature
 const evmProvider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:8545");
 const ALICE = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
 const BOB = new ethers.Wallet("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
-const ESCROW_FACTORY_ADDRESS = "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9";
-const OFFER_SRC_TX_ID = "bqLDy8-ZBgoEtnMQN68-rtjuYk00nAOlQPffczYKSIw";
+const ESCROW_FACTORY_ADDRESS = "0x0165878A594ca255338adfa4d48449f69242Eb8F";
+const OFFER_SRC_TX_ID = "4fDVje5-UgnLcf0i5eiALDZE0-mgMU0oPtYQ0meiFm0";
 export const TEST_PAYMENT_TOKEN = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 LoggerFactory.INST.logLevel('none');
 
@@ -141,8 +141,6 @@ describe('e2e tests', () => {
             ALICE_NFT.contractTxId,
             price,
             TEST_PAYMENT_TOKEN,
-            undefined,
-            '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' // with delegate
         );
 
         await buyerAlice.acceptOffer(offerAlice.offerId, "qwe");
